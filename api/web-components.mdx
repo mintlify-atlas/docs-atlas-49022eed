@@ -1,0 +1,418 @@
+---
+title: "Web Components API"
+description: "Create Web Components from Closure Next components"
+icon: "cube"
+---
+
+The `@closure-next/web-components` package enables you to convert Closure Next components into standards-compliant Web Components with full browser support.
+
+## Installation
+
+```bash
+npm install @closure-next/web-components
+```
+
+## Quick Start
+
+```typescript
+import { defineClosureElement } from '@closure-next/web-components';
+import { MyComponent } from './components/MyComponent';
+
+// Define a custom element
+defineClosureElement('my-component', MyComponent, {
+  observedAttributes: ['title', 'count'],
+  shadow: true
+});
+```
+
+```html
+<!-- Use in HTML -->
+<my-component title="Hello" count="42"></my-component>
+```
+
+## API Reference
+
+### defineClosureElement
+
+Registers a Closure Next component as a custom element in the browser's custom elements registry.
+
+```typescript
+function defineClosureElement<T extends Component>(
+  tagName: string,
+  ComponentClass: new () => T,
+  options?: ClosureElementOptions
+): void
+```
+
+<ParamField path="tagName" type="string" required>
+  The custom element tag name. Must contain a hyphen (e.g., `my-component`).
+</ParamField>
+
+<ParamField path="ComponentClass" type="ComponentConstructor<T>" required>
+  The Closure Next component class to wrap as a Web Component.
+</ParamField>
+
+<ParamField path="options" type="ClosureElementOptions">
+  Configuration options for the custom element.
+</ParamField>
+
+#### ClosureElementOptions
+
+<ParamField path="observedAttributes" type="string[]">
+  Array of attribute names to observe for changes. When these attributes change, the component will update.
+  
+  ```typescript
+  observedAttributes: ['title', 'count', 'active']
+  ```
+</ParamField>
+
+<ParamField path="shadow" type="boolean" default="false">
+  Whether to use Shadow DOM for encapsulation. When `true`, component styles and DOM are isolated from the rest of the page.
+</ParamField>
+
+#### Example
+
+```typescript
+import { Component } from '@closure-next/core';
+import { defineClosureElement } from '@closure-next/web-components';
+
+class CounterComponent extends Component {
+  private count = 0;
+  
+  setCount(value: string | number) {
+    this.count = typeof value === 'string' ? parseInt(value, 10) : value;
+    this.render(this.getElement()!);
+  }
+  
+  getCount(): number {
+    return this.count;
+  }
+  
+  override createDom(): void {
+    super.createDom();
+    this.render(this.getElement()!);
+  }
+  
+  override render(element: HTMLElement): void {
+    element.innerHTML = `<div>Count: ${this.count}</div>`;
+  }
+}
+
+// Define the custom element
+defineClosureElement('counter-component', CounterComponent, {
+  observedAttributes: ['count'],
+  shadow: false
+});
+```
+
+```html
+<!-- Use in HTML -->
+<counter-component count="5"></counter-component>
+```
+
+### createClosureTemplate
+
+Creates an HTML template element from a Closure Next component for reusable component instances.
+
+```typescript
+async function createClosureTemplate<T extends Component>(
+  ComponentClass: new () => T,
+  props?: Record<string, unknown>
+): Promise<HTMLTemplateElement>
+```
+
+<ParamField path="ComponentClass" type="ComponentConstructor<T>" required>
+  The Closure Next component class to create a template from.
+</ParamField>
+
+<ParamField path="props" type="Record<string, unknown>">
+  Initial properties to set on the component template.
+</ParamField>
+
+<ResponseField name="returns" type="Promise<HTMLTemplateElement>">
+  A promise that resolves to an HTML template element containing the component.
+</ResponseField>
+
+#### Example
+
+```typescript
+import { createClosureTemplate } from '@closure-next/web-components';
+import { CardComponent } from './components/Card';
+
+// Create a template
+const template = await createClosureTemplate(CardComponent, {
+  title: 'Template Card',
+  description: 'Reusable component'
+});
+
+// Clone and use the template
+const instance = template.content.cloneNode(true);
+document.body.appendChild(instance);
+```
+
+## Attribute Handling
+
+Attributes are automatically mapped to component setters and getters:
+
+```typescript
+class MyComponent extends Component {
+  private title = '';
+  
+  // Setter called when 'title' attribute changes
+  setTitle(value: string) {
+    this.title = value;
+    this.render(this.getElement()!);
+  }
+  
+  // Getter used to read current value
+  getTitle(): string {
+    return this.title;
+  }
+}
+
+defineClosureElement('my-component', MyComponent, {
+  observedAttributes: ['title']
+});
+```
+
+```html
+<!-- Setting attributes -->
+<my-component title="Hello World"></my-component>
+
+<script>
+  // Programmatic update
+  const component = document.querySelector('my-component');
+  component.setAttribute('title', 'Updated Title');
+</script>
+```
+
+<Note>
+  Attribute names are automatically converted to setter method names. For example, `title` becomes `setTitle()`, and `my-prop` becomes `setMyProp()`.
+</Note>
+
+## Shadow DOM
+
+Enable Shadow DOM for style encapsulation and DOM isolation:
+
+```typescript
+defineClosureElement('isolated-component', MyComponent, {
+  shadow: true
+});
+```
+
+### Benefits
+
+- **Style isolation**: Component styles don't leak out, and global styles don't leak in
+- **DOM encapsulation**: Component's internal DOM is hidden from external JavaScript
+- **Cleaner markup**: Internal structure doesn't pollute the main document
+
+### Example with Shadow DOM
+
+```typescript
+class StyledComponent extends Component {
+  override createDom(): void {
+    super.createDom();
+    const element = this.getElement();
+    if (element) {
+      element.innerHTML = `
+        <style>
+          .container { color: blue; padding: 20px; }
+        </style>
+        <div class="container">
+          Styled content
+        </div>
+      `;
+    }
+  }
+}
+
+defineClosureElement('styled-component', StyledComponent, {
+  shadow: true // Styles are scoped to this component
+});
+```
+
+## Lifecycle Events
+
+### component-ready
+
+Fired when the component has been fully initialized and is ready for interaction.
+
+```typescript
+const element = document.querySelector('my-component');
+
+element.addEventListener('component-ready', (event) => {
+  console.log('Component initialized:', event.detail.component);
+  // Access the underlying Closure component
+  const closureComponent = event.detail.component;
+});
+```
+
+## Accessing the Closure Component
+
+Access the underlying Closure Next component instance from the custom element:
+
+```typescript
+const element = document.querySelector('my-component');
+const closureComponent = (element as any)._closureComponent;
+
+// Call component methods directly
+closureComponent.someMethod();
+```
+
+<Warning>
+  The `_closureComponent` property is internal. Use events and attributes for normal component communication.
+</Warning>
+
+## Framework Integration
+
+### React
+
+```tsx
+import React from 'react';
+
+// Define the custom element first
+defineClosureElement('my-component', MyComponent, {
+  observedAttributes: ['title']
+});
+
+// Use in React
+function App() {
+  return (
+    <my-component title="Hello from React" />
+  );
+}
+```
+
+### Vue
+
+```vue
+<template>
+  <my-component :title="title" @component-ready="onReady" />
+</template>
+
+<script>
+import { defineClosureElement } from '@closure-next/web-components';
+import { MyComponent } from './components/MyComponent';
+
+defineClosureElement('my-component', MyComponent, {
+  observedAttributes: ['title']
+});
+
+export default {
+  data() {
+    return {
+      title: 'Hello from Vue'
+    };
+  },
+  methods: {
+    onReady(event) {
+      console.log('Component ready:', event.detail.component);
+    }
+  }
+};
+</script>
+```
+
+### Angular
+
+```typescript
+import { Component, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
+import { defineClosureElement } from '@closure-next/web-components';
+import { MyComponent } from './components/MyComponent';
+
+defineClosureElement('my-component', MyComponent, {
+  observedAttributes: ['title']
+});
+
+@Component({
+  selector: 'app-root',
+  template: '<my-component [attr.title]="title"></my-component>',
+  schemas: [CUSTOM_ELEMENTS_SCHEMA]
+})
+export class AppComponent {
+  title = 'Hello from Angular';
+}
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Use kebab-case for tag names">
+    Custom element names must contain a hyphen and use lowercase letters:
+    
+    ```typescript
+    // Good
+    defineClosureElement('user-profile', UserProfile);
+    defineClosureElement('todo-item', TodoItem);
+    
+    // Invalid
+    defineClosureElement('profile', UserProfile); // No hyphen
+    defineClosureElement('UserProfile', UserProfile); // Uppercase
+    ```
+  </Accordion>
+  
+  <Accordion title="Declare all reactive attributes">
+    List all attributes that should trigger updates in `observedAttributes`:
+    
+    ```typescript
+    defineClosureElement('my-component', MyComponent, {
+      observedAttributes: ['title', 'count', 'active']
+    });
+    ```
+  </Accordion>
+  
+  <Accordion title="Implement setter methods for attributes">
+    Each observed attribute should have a corresponding setter method:
+    
+    ```typescript
+    class MyComponent extends Component {
+      setTitle(value: string) { /* ... */ }
+      setCount(value: string | number) { /* ... */ }
+      setActive(value: string | boolean) { /* ... */ }
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Use Shadow DOM for reusable components">
+    Enable Shadow DOM for components that will be used multiple times to prevent style conflicts:
+    
+    ```typescript
+    defineClosureElement('reusable-card', CardComponent, {
+      shadow: true
+    });
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## TypeScript Support
+
+Full TypeScript definitions are provided:
+
+```typescript
+import type { Component } from '@closure-next/core';
+
+interface ClosureElementOptions {
+  observedAttributes?: string[];
+  shadow?: boolean;
+}
+
+function defineClosureElement<T extends Component>(
+  tagName: string,
+  ComponentClass: new () => T,
+  options?: ClosureElementOptions
+): void;
+
+function createClosureTemplate<T extends Component>(
+  ComponentClass: new () => T,
+  props?: Record<string, unknown>
+): Promise<HTMLTemplateElement>;
+```
+
+## Browser Support
+
+- Chrome 54+
+- Firefox 63+
+- Safari 10.1+
+- Edge 79+
+
+For older browsers, use a Web Components polyfill.

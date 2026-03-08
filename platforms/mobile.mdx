@@ -1,0 +1,675 @@
+---
+title: 'Mobile Platforms'
+description: 'Build mobile applications with React Native, Ionic, and Flutter support'
+icon: 'mobile'
+---
+
+## Overview
+
+The `@closure-next/mobile` package provides mobile platform integrations for Closure Next, with specialized support for React Native, Ionic, and Flutter Web. It includes touch events, gesture recognition, and platform-specific optimizations.
+
+## Installation
+
+```bash
+npm install @closure-next/mobile
+```
+
+## Platform Support
+
+The package supports multiple mobile platforms:
+
+- **React Native**: Native mobile apps for iOS and Android
+- **Ionic**: Hybrid apps with Capacitor or Cordova
+- **Flutter Web**: Flutter applications compiled to web
+
+## Basic Usage
+
+### MobileComponent
+
+The base mobile component wrapper provides touch and gesture support:
+
+```typescript
+import { MobileComponent } from '@closure-next/mobile';
+import { Component, DOMHelper } from '@closure-next/core';
+
+class MyButton extends Component {
+  constructor(domHelper: DOMHelper) {
+    super(domHelper);
+  }
+
+  protected override async createDom(): Promise<void> {
+    super.createDom();
+    const element = this.getElement();
+    if (element) {
+      element.className = 'mobile-button';
+      element.textContent = 'Tap me';
+    }
+  }
+}
+
+// Wrap component for mobile
+const mobileButton = new MobileComponent(MyButton, {
+  touch: true,
+  gestures: true,
+  platformStyles: true
+});
+
+const container = document.getElementById('app');
+await mobileButton.render(container);
+```
+
+## React Native Integration
+
+Create components optimized for React Native:
+
+```typescript
+import { createReactNativeComponent } from '@closure-next/mobile';
+import { Component, DOMHelper } from '@closure-next/core';
+
+class ListItem extends Component {
+  private title: string = '';
+
+  constructor(domHelper: DOMHelper) {
+    super(domHelper);
+  }
+
+  setTitle(title: string): void {
+    this.title = title;
+    const element = this.getElement();
+    if (element) {
+      element.textContent = title;
+    }
+  }
+
+  protected override async createDom(): Promise<void> {
+    super.createDom();
+    const element = this.getElement();
+    if (element) {
+      element.className = 'list-item';
+      element.textContent = this.title;
+    }
+  }
+}
+
+// Create React Native optimized component
+const domHelper = new DOMHelper(document);
+const rnComponent = createReactNativeComponent(ListItem, {
+  touch: true,
+  gestures: true,
+  platformStyles: true,
+  reactNative: {
+    nativeModules: true,
+    optimizations: true
+  }
+}, domHelper);
+
+const container = document.getElementById('list-container');
+await rnComponent.render(container);
+```
+
+## Ionic Integration
+
+Build Ionic apps with Capacitor or Cordova:
+
+```typescript
+import { createIonicComponent } from '@closure-next/mobile';
+import { Component, DOMHelper } from '@closure-next/core';
+
+class IonicCard extends Component {
+  constructor(domHelper: DOMHelper) {
+    super(domHelper);
+  }
+
+  protected override async createDom(): Promise<void> {
+    super.createDom();
+    const element = this.getElement();
+    if (element) {
+      element.innerHTML = `
+        <ion-card>
+          <ion-card-header>
+            <ion-card-title>Card Title</ion-card-title>
+          </ion-card-header>
+          <ion-card-content>
+            Card content goes here
+          </ion-card-content>
+        </ion-card>
+      `;
+    }
+  }
+}
+
+const domHelper = new DOMHelper(document);
+const ionicComponent = createIonicComponent(IonicCard, {
+  touch: true,
+  gestures: true,
+  ionic: {
+    capacitor: true,
+    cordova: false
+  }
+}, domHelper);
+
+const container = document.getElementById('app');
+await ionicComponent.render(container);
+```
+
+## Flutter Web Integration
+
+Integrate with Flutter web applications:
+
+```typescript
+import { createFlutterComponent } from '@closure-next/mobile';
+import { Component, DOMHelper } from '@closure-next/core';
+
+class FlutterWidget extends Component {
+  constructor(domHelper: DOMHelper) {
+    super(domHelper);
+  }
+
+  protected override async createDom(): Promise<void> {
+    super.createDom();
+    const element = this.getElement();
+    if (element) {
+      element.className = 'flutter-widget';
+      element.innerHTML = '<div class="widget-content">Flutter Widget</div>';
+    }
+  }
+}
+
+const domHelper = new DOMHelper(document);
+const flutterComponent = createFlutterComponent(FlutterWidget, {
+  touch: true,
+  gestures: true,
+  flutter: {
+    webRendering: 'canvaskit',
+    optimization: true
+  }
+}, domHelper);
+
+const container = document.getElementById('flutter-root');
+await flutterComponent.render(container);
+```
+
+## Touch Events
+
+MobileComponent automatically enables touch event handling:
+
+```typescript
+import { MobileComponent } from '@closure-next/mobile';
+import { Component, DOMHelper } from '@closure-next/core';
+
+class TouchableCard extends Component {
+  constructor(domHelper: DOMHelper) {
+    super(domHelper);
+  }
+
+  protected override async createDom(): Promise<void> {
+    super.createDom();
+    const element = this.getElement();
+    if (element) {
+      element.className = 'touchable-card';
+      element.innerHTML = '<h3>Touch me!</h3>';
+    }
+  }
+}
+
+const domHelper = new DOMHelper(document);
+const mobileCard = new MobileComponent(TouchableCard, {
+  touch: true  // Enables touchstart, touchmove, touchend
+}, domHelper);
+
+const container = document.getElementById('cards');
+await mobileCard.render(container);
+
+// Touch events are automatically handled:
+// - touchstart: Records initial touch position
+// - touchmove: Tracks movement (can prevent scroll if gesturing)
+// - touchend: Cleans up touch state
+```
+
+## Gesture Recognition
+
+Enable swipe and gesture detection:
+
+```typescript
+import { MobileComponent } from '@closure-next/mobile';
+import { Component, DOMHelper } from '@closure-next/core';
+
+class SwipeableItem extends Component {
+  constructor(domHelper: DOMHelper) {
+    super(domHelper);
+  }
+
+  protected override async createDom(): Promise<void> {
+    super.createDom();
+    const element = this.getElement();
+    if (element) {
+      element.className = 'swipeable-item';
+      element.textContent = 'Swipe me';
+    }
+  }
+}
+
+const domHelper = new DOMHelper(document);
+const swipeable = new MobileComponent(SwipeableItem, {
+  gestures: true  // Enables gesture recognition
+}, domHelper);
+
+const container = document.getElementById('list');
+await swipeable.render(container);
+
+// Listen for gesture events
+const element = swipeable.getElement();
+if (element) {
+  element.addEventListener('gesture', (e: CustomEvent) => {
+    const { deltaX, deltaY } = e.detail;
+    
+    if (Math.abs(deltaX) > Math.abs(deltaY)) {
+      // Horizontal swipe
+      if (deltaX > 0) {
+        console.log('Swiped right');
+      } else {
+        console.log('Swiped left');
+      }
+    } else {
+      // Vertical swipe
+      if (deltaY > 0) {
+        console.log('Swiped down');
+      } else {
+        console.log('Swiped up');
+      }
+    }
+  });
+}
+```
+
+## Platform-Specific Styles
+
+Automatic platform detection and styling:
+
+```typescript
+import { MobileComponent } from '@closure-next/mobile';
+import { Component, DOMHelper } from '@closure-next/core';
+
+class StyledButton extends Component {
+  constructor(domHelper: DOMHelper) {
+    super(domHelper);
+  }
+
+  protected override async createDom(): Promise<void> {
+    super.createDom();
+    const element = this.getElement();
+    if (element) {
+      element.className = 'platform-button';
+      element.textContent = 'Platform Button';
+    }
+  }
+}
+
+const domHelper = new DOMHelper(document);
+const platformButton = new MobileComponent(StyledButton, {
+  platformStyles: true  // Applies platform-specific classes
+}, domHelper);
+
+const container = document.getElementById('buttons');
+await platformButton.render(container);
+
+// Element will have platform-specific classes:
+// - iOS: 'closure-next-ios' + 'closure-next-mobile'
+// - Android: 'closure-next-android' + 'closure-next-mobile'
+// Plus CSS properties:
+// - touchAction: 'manipulation'
+// - webkitTapHighlightColor: 'transparent'
+// - userSelect: 'none'
+```
+
+## Hybrid Bridge Communication
+
+Communicate with native code in hybrid apps:
+
+```typescript
+import { HybridComponent } from '@closure-next/mobile';
+import { Component, DOMHelper } from '@closure-next/core';
+
+class NativeBridgeComponent extends Component {
+  constructor(domHelper: DOMHelper) {
+    super(domHelper);
+  }
+
+  protected override async createDom(): Promise<void> {
+    super.createDom();
+    const element = this.getElement();
+    if (element) {
+      element.className = 'native-component';
+      element.innerHTML = '<button>Send to Native</button>';
+      
+      // Listen for messages from native
+      element.addEventListener('native-message', (e: CustomEvent) => {
+        console.log('Received from native:', e.detail);
+      });
+    }
+  }
+}
+
+const domHelper = new DOMHelper(document);
+const hybridComponent = new HybridComponent(NativeBridgeComponent, {
+  touch: true
+}, domHelper);
+
+const container = document.getElementById('app');
+await hybridComponent.render(container);
+
+// Send messages to native code
+const element = hybridComponent.getElement();
+if (element) {
+  const button = element.querySelector('button');
+  button?.addEventListener('click', () => {
+    // Messages are sent via WebKit message handlers (iOS)
+    // or Android JavaScript interface
+    hybridComponent.sendToNative({
+      type: 'action',
+      payload: { action: 'openCamera' }
+    });
+  });
+}
+```
+
+## Configuration Options
+
+### MobileComponentOptions
+
+```typescript
+interface MobileComponentOptions {
+  touch?: boolean;           // Enable touch events (default: true)
+  gestures?: boolean;        // Enable gesture recognition (default: true)
+  platformStyles?: boolean;  // Apply platform-specific styles (default: true)
+  platform?: 'react-native' | 'ionic' | 'flutter-web';
+}
+```
+
+### ReactNativeOptions
+
+```typescript
+interface ReactNativeOptions extends MobileComponentOptions {
+  reactNative?: {
+    nativeModules?: boolean;    // Enable native module integration
+    optimizations?: boolean;    // Apply RN-specific optimizations
+  };
+}
+```
+
+### IonicOptions
+
+```typescript
+interface IonicOptions extends MobileComponentOptions {
+  ionic?: {
+    capacitor?: boolean;  // Use Capacitor bridge
+    cordova?: boolean;    // Use Cordova bridge
+  };
+}
+```
+
+### FlutterOptions
+
+```typescript
+interface FlutterOptions extends MobileComponentOptions {
+  flutter?: {
+    webRendering?: 'canvaskit' | 'html';  // Flutter web renderer
+    optimization?: boolean;                // Flutter-specific opts
+  };
+}
+```
+
+## API Reference
+
+### MobileComponent
+
+Base wrapper class for mobile platforms.
+
+```typescript
+class MobileComponent<T extends Component = Component> {
+  constructor(
+    ComponentClass: new (domHelper: DOMHelper) => T,
+    options?: MobileComponentOptions,
+    domHelper?: DOMHelper
+  )
+
+  getElement(): HTMLElement | null
+  render(container: HTMLElement): Promise<void>
+  dispose(): void
+}
+```
+
+### createReactNativeComponent()
+
+```typescript
+function createReactNativeComponent<T extends Component>(
+  ComponentClass: new (domHelper: DOMHelper) => T,
+  options?: ReactNativeOptions,
+  domHelper?: DOMHelper
+): MobileComponent<T>
+```
+
+### createIonicComponent()
+
+```typescript
+function createIonicComponent<T extends Component>(
+  ComponentClass: new (domHelper: DOMHelper) => T,
+  options?: IonicOptions,
+  domHelper?: DOMHelper
+): MobileComponent<T>
+```
+
+### createFlutterComponent()
+
+```typescript
+function createFlutterComponent<T extends Component>(
+  ComponentClass: new (domHelper: DOMHelper) => T,
+  options?: FlutterOptions,
+  domHelper?: DOMHelper
+): MobileComponent<T>
+```
+
+### HybridComponent
+
+Extends MobileComponent with native bridge support.
+
+```typescript
+class HybridComponent extends MobileComponent {
+  protected sendToNative(message: any): void
+}
+```
+
+## Complete Example
+
+<CodeGroup>
+
+```typescript React Native
+import { createReactNativeComponent } from '@closure-next/mobile';
+import { Component, DOMHelper } from '@closure-next/core';
+
+class ProductCard extends Component {
+  private name: string = '';
+  private price: number = 0;
+
+  constructor(domHelper: DOMHelper) {
+    super(domHelper);
+  }
+
+  setProduct(name: string, price: number): void {
+    this.name = name;
+    this.price = price;
+    this.updateDisplay();
+  }
+
+  protected override async createDom(): Promise<void> {
+    super.createDom();
+    this.updateDisplay();
+  }
+
+  private updateDisplay(): void {
+    const element = this.getElement();
+    if (element) {
+      element.innerHTML = `
+        <div class="product-card">
+          <h3>${this.name}</h3>
+          <p>$${this.price.toFixed(2)}</p>
+          <button>Add to Cart</button>
+        </div>
+      `;
+    }
+  }
+}
+
+const domHelper = new DOMHelper(document);
+const productCard = createReactNativeComponent(ProductCard, {
+  touch: true,
+  gestures: true,
+  platformStyles: true
+}, domHelper);
+
+const container = document.getElementById('products');
+await productCard.render(container);
+
+const component = productCard.getInstance();
+component.setProduct('Laptop', 999.99);
+```
+
+```typescript Ionic
+import { createIonicComponent } from '@closure-next/mobile';
+import { Component, DOMHelper } from '@closure-next/core';
+
+class SettingsPanel extends Component {
+  constructor(domHelper: DOMHelper) {
+    super(domHelper);
+  }
+
+  protected override async createDom(): Promise<void> {
+    super.createDom();
+    const element = this.getElement();
+    if (element) {
+      element.innerHTML = `
+        <ion-list>
+          <ion-item>
+            <ion-label>Notifications</ion-label>
+            <ion-toggle></ion-toggle>
+          </ion-item>
+          <ion-item>
+            <ion-label>Dark Mode</ion-label>
+            <ion-toggle></ion-toggle>
+          </ion-item>
+        </ion-list>
+      `;
+    }
+  }
+}
+
+const domHelper = new DOMHelper(document);
+const settings = createIonicComponent(SettingsPanel, {
+  ionic: { capacitor: true }
+}, domHelper);
+
+const container = document.getElementById('settings');
+await settings.render(container);
+```
+
+```typescript Flutter
+import { createFlutterComponent } from '@closure-next/mobile';
+import { Component, DOMHelper } from '@closure-next/core';
+
+class FlutterDataTable extends Component {
+  constructor(domHelper: DOMHelper) {
+    super(domHelper);
+  }
+
+  protected override async createDom(): Promise<void> {
+    super.createDom();
+    const element = this.getElement();
+    if (element) {
+      element.innerHTML = `
+        <table class="data-table">
+          <thead>
+            <tr><th>Name</th><th>Value</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Item 1</td><td>100</td></tr>
+            <tr><td>Item 2</td><td>200</td></tr>
+          </tbody>
+        </table>
+      `;
+    }
+  }
+}
+
+const domHelper = new DOMHelper(document);
+const dataTable = createFlutterComponent(FlutterDataTable, {
+  flutter: {
+    webRendering: 'canvaskit',
+    optimization: true
+  }
+}, domHelper);
+
+const container = document.getElementById('data');
+await dataTable.render(container);
+```
+
+</CodeGroup>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Always enable touch events for mobile">
+    Touch events are essential for proper mobile interaction:
+
+    ```typescript
+    const mobileComponent = new MobileComponent(MyComponent, {
+      touch: true  // Always enable for mobile apps
+    });
+    ```
+  </Accordion>
+
+  <Accordion title="Use platform-specific components">
+    Use the appropriate factory function for your platform:
+
+    ```typescript
+    // For React Native
+    createReactNativeComponent(Component, options);
+
+    // For Ionic
+    createIonicComponent(Component, options);
+
+    // For Flutter
+    createFlutterComponent(Component, options);
+    ```
+  </Accordion>
+
+  <Accordion title="Handle gestures for better UX">
+    Enable gesture recognition for swipeable components:
+
+    ```typescript
+    const swipeable = new MobileComponent(Component, {
+      gestures: true
+    });
+    ```
+  </Accordion>
+
+  <Accordion title="Clean up on disposal">
+    Always dispose components to prevent memory leaks:
+
+    ```typescript
+    const component = new MobileComponent(MyComponent);
+    // Use component...
+    component.dispose();  // Clean up when done
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Component Basics" icon="cube" href="/core/components">
+    Learn about Closure Next components
+  </Card>
+  <Card title="Web Components" icon="puzzle-piece" href="/platforms/web-components">
+    Create reusable custom elements
+  </Card>
+</CardGroup>

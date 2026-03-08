@@ -1,0 +1,470 @@
+---
+title: "Migration Guide"
+description: "Migrate from Google Closure Library to Closure Next with modern TypeScript patterns"
+---
+
+# Migrating from Google Closure Library
+
+Closure Next is a complete rewrite of Google Closure Library in TypeScript, designed for the modern JavaScript ecosystem. This guide helps you migrate your existing Closure Library code to Closure Next.
+
+## Key Differences
+
+<CardGroup cols={2}>
+  <Card title="TypeScript-First" icon="code">
+    Full TypeScript support with complete type safety and modern ES modules
+  </Card>
+  <Card title="Modern Syntax" icon="sparkles">
+    Classes, async/await, and modern JavaScript features throughout
+  </Card>
+  <Card title="Framework Integration" icon="plug">
+    Native support for React, Vue, Angular, and Svelte
+  </Card>
+  <Card title="Zero Dependencies" icon="feather">
+    No compiler required - works with standard build tools
+  </Card>
+</CardGroup>
+
+## Component System
+
+### Old: Closure Library
+
+```javascript
+goog.require('goog.ui.Component');
+
+/**
+ * @constructor
+ * @extends {goog.ui.Component}
+ */
+MyComponent = function() {
+  goog.ui.Component.call(this);
+};
+goog.inherits(MyComponent, goog.ui.Component);
+
+MyComponent.prototype.createDom = function() {
+  this.element_ = this.dom_.createElement('div');
+};
+
+MyComponent.prototype.enterDocument = function() {
+  goog.ui.Component.prototype.enterDocument.call(this);
+  this.getHandler().listen(this.element_, 'click', this.handleClick_);
+};
+```
+
+### New: Closure Next
+
+```typescript
+import { Component, DOMHelper } from '@closure-next/core';
+
+class MyComponent extends Component {
+  constructor() {
+    super(new DOMHelper());
+  }
+
+  protected async createDom(): Promise<void> {
+    this.element = this.domHelper.createElement('div');
+  }
+
+  async render(container: HTMLElement): Promise<void> {
+    await super.render(container);
+    this.element?.addEventListener('click', () => this.handleClick());
+  }
+
+  private handleClick(): void {
+    // Handle click event
+  }
+}
+```
+
+<Accordion title="Migration Benefits">
+  - **Type Safety**: Catch errors at compile time with TypeScript
+  - **Async/Await**: Modern promise-based APIs instead of callbacks
+  - **No Compiler**: Works with standard TypeScript compiler
+  - **IDE Support**: Full IntelliSense and autocomplete
+</Accordion>
+
+## DOM Manipulation
+
+### Old: goog.dom
+
+<Tabs>
+  <Tab title="Closure Library">
+    ```javascript
+    goog.require('goog.dom');
+    goog.require('goog.dom.classes');
+
+    // Create element
+    const element = goog.dom.createElement('div');
+    
+    // Query elements
+    const byId = goog.dom.getElement('myId');
+    const byClass = goog.dom.getElementsByClass('myClass');
+    
+    // Manipulate
+    goog.dom.classes.add(element, 'active');
+    goog.dom.setTextContent(element, 'Hello');
+    goog.dom.appendChild(parent, child);
+    ```
+  </Tab>
+  <Tab title="Closure Next">
+    ```typescript
+    import { DOMHelper } from '@closure-next/core';
+
+    const domHelper = new DOMHelper();
+
+    // Create element
+    const element = domHelper.createElement('div');
+    
+    // Query elements
+    const byId = domHelper.getElementById('myId');
+    const byClass = domHelper.getElementsByClassName('myClass');
+    
+    // Manipulate
+    element.classList.add('active');
+    element.textContent = 'Hello';
+    domHelper.appendChild(parent, child);
+    ```
+  </Tab>
+</Tabs>
+
+<Tip>
+  Closure Next uses native DOM APIs where possible, reducing abstraction overhead and improving performance.
+</Tip>
+
+## Event Handling
+
+### Old: goog.events
+
+<Tabs>
+  <Tab title="Closure Library">
+    ```javascript
+    goog.require('goog.events');
+    goog.require('goog.events.EventType');
+
+    // Add listener
+    goog.events.listen(element, goog.events.EventType.CLICK, handler);
+    
+    // Remove listener
+    goog.events.unlisten(element, goog.events.EventType.CLICK, handler);
+    
+    // Custom events
+    goog.events.dispatchEvent(target, 'customEvent');
+    ```
+  </Tab>
+  <Tab title="Closure Next">
+    ```typescript
+    import { EventTarget, EventType } from '@closure-next/core';
+
+    class MyComponent extends EventTarget {
+      // Add listener
+      addEventListener(EventType.STATECHANGE, handler);
+      
+      // Remove listener
+      removeEventListener(EventType.STATECHANGE, handler);
+      
+      // Emit custom events
+      emit('customEvent', { data: 'value' });
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## State Management
+
+Closure Next introduces a modern state management system not present in the original library.
+
+```typescript
+import { Component, DOMHelper, EventType } from '@closure-next/core';
+
+class StatefulComponent extends Component {
+  constructor() {
+    super(new DOMHelper());
+  }
+
+  async initialize(): Promise<void> {
+    // Set initial state
+    await this.setState({ count: 0 });
+    
+    // Listen to state changes
+    this.addEventListener(EventType.STATECHANGE, (event) => {
+      console.log('State changed:', event.data);
+    });
+  }
+
+  async increment(): Promise<void> {
+    const current = this.getState();
+    await this.setState({ count: current.count + 1 });
+  }
+}
+```
+
+<Tip>
+  State changes automatically trigger re-renders and emit events, making reactive UIs easy to build.
+</Tip>
+
+## String Utilities
+
+### Old: goog.string
+
+<Tabs>
+  <Tab title="Closure Library">
+    ```javascript
+    goog.require('goog.string');
+
+    // Case conversion
+    const camel = goog.string.toCamelCase('hello-world');
+    const pascal = goog.string.toTitleCase('hello world');
+    
+    // HTML escaping
+    const safe = goog.string.htmlEscape('<script>alert(1)</script>');
+    
+    // Comparison
+    const result = goog.string.caseInsensitiveCompare(str1, str2);
+    ```
+  </Tab>
+  <Tab title="Closure Next">
+    ```typescript
+    import { 
+      toCamelCase, 
+      toPascalCase, 
+      htmlEscape, 
+      compareIgnoreCase 
+    } from '@closure-next/core/utils/string';
+
+    // Case conversion
+    const camel = toCamelCase('hello-world');
+    const pascal = toPascalCase('hello world');
+    
+    // HTML escaping
+    const safe = htmlEscape('<script>alert(1)</script>');
+    
+    // Comparison
+    const result = compareIgnoreCase(str1, str2);
+    ```
+  </Tab>
+</Tabs>
+
+## Array Utilities
+
+### Old: goog.array
+
+<Tabs>
+  <Tab title="Closure Library">
+    ```javascript
+    goog.require('goog.array');
+
+    // Binary search
+    const index = goog.array.binarySearch(sortedArray, target);
+    
+    // Remove element
+    goog.array.remove(array, element);
+    
+    // Insert at index
+    goog.array.insertAt(array, element, index);
+    ```
+  </Tab>
+  <Tab title="Closure Next">
+    ```typescript
+    import { 
+      binarySearch, 
+      remove, 
+      insertAt 
+    } from '@closure-next/core/utils/array';
+
+    // Binary search
+    const index = binarySearch(sortedArray, target);
+    
+    // Remove element
+    remove(array, element);
+    
+    // Insert at index
+    insertAt(array, element, index);
+    ```
+  </Tab>
+</Tabs>
+
+## Lazy Loading
+
+### Old: goog.module.ModuleLoader
+
+<Tabs>
+  <Tab title="Closure Library">
+    ```javascript
+    goog.require('goog.module.ModuleLoader');
+
+    const loader = new goog.module.ModuleLoader();
+    loader.loadModule('myModule', function() {
+      // Module loaded
+    });
+    ```
+  </Tab>
+  <Tab title="Closure Next">
+    ```typescript
+    import { Lazy } from '@closure-next/core';
+
+    const lazyModule = new Lazy(async () => {
+      return await import('./myModule');
+    });
+
+    // Load on demand
+    const module = await lazyModule.get();
+    
+    // Check if loaded
+    if (lazyModule.isLoaded()) {
+      // Already loaded
+    }
+    ```
+  </Tab>
+</Tabs>
+
+<Tip>
+  Closure Next uses standard dynamic imports, making it compatible with all modern bundlers.
+</Tip>
+
+## Server-Side Rendering
+
+Closure Next adds first-class SSR support not available in the original library.
+
+```typescript
+import { Component, DOMHelper } from '@closure-next/core';
+import { JSDOM } from 'jsdom';
+
+// Server-side
+const jsdom = new JSDOM('<!DOCTYPE html>');
+const domHelper = new DOMHelper(jsdom.window.document);
+const component = new MyComponent(domHelper);
+
+// Render to string
+const html = await component.renderToString();
+
+// Client-side hydration
+const clientComponent = new MyComponent(new DOMHelper());
+await clientComponent.hydrate(document.getElementById('app'));
+```
+
+## Disposal and Cleanup
+
+### Old: goog.Disposable
+
+<Tabs>
+  <Tab title="Closure Library">
+    ```javascript
+    MyComponent.prototype.disposeInternal = function() {
+      goog.base(this, 'disposeInternal');
+      // Cleanup code
+    };
+    ```
+  </Tab>
+  <Tab title="Closure Next">
+    ```typescript
+    class MyComponent extends Component {
+      dispose(): void {
+        if (this.isDisposed()) return;
+        
+        // Cleanup code
+        super.dispose(); // Emits DISPOSE event
+      }
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Migration Checklist
+
+<AccordionGroup>
+  <Accordion title="Phase 1: Setup" icon="gear">
+    - [ ] Install `@closure-next/core` via npm
+    - [ ] Configure TypeScript with `strict: true`
+    - [ ] Set up ES module imports
+    - [ ] Remove Closure Compiler from build pipeline
+  </Accordion>
+  
+  <Accordion title="Phase 2: Components" icon="cube">
+    - [ ] Convert `goog.ui.Component` to `Component` class
+    - [ ] Replace `createDom` with async version
+    - [ ] Update event handling to use `addEventListener`
+    - [ ] Migrate state management to `setState/getState`
+  </Accordion>
+  
+  <Accordion title="Phase 3: Utilities" icon="wrench">
+    - [ ] Replace `goog.dom` with `DOMHelper`
+    - [ ] Update string utilities imports
+    - [ ] Update array utilities imports
+    - [ ] Migrate custom events to `EventTarget`
+  </Accordion>
+  
+  <Accordion title="Phase 4: Build & Test" icon="check">
+    - [ ] Configure build tool (Webpack/Vite/Rollup)
+    - [ ] Update unit tests to use Jest or Vitest
+    - [ ] Test SSR if needed
+    - [ ] Verify tree-shaking works correctly
+  </Accordion>
+</AccordionGroup>
+
+## Common Patterns
+
+### Pattern: Component with Children
+
+```typescript
+import { Component, DOMHelper } from '@closure-next/core';
+
+class ContainerComponent extends Component {
+  constructor() {
+    super(new DOMHelper());
+  }
+
+  addItem(item: Component): void {
+    this.addChild(item);
+  }
+
+  async render(container: HTMLElement): Promise<void> {
+    await super.render(container);
+    // Children are automatically rendered
+  }
+
+  dispose(): void {
+    // Children are automatically disposed
+    super.dispose();
+  }
+}
+```
+
+### Pattern: Event-Driven Component
+
+```typescript
+import { Component, DOMHelper, EventType } from '@closure-next/core';
+
+class InteractiveComponent extends Component {
+  constructor() {
+    super(new DOMHelper());
+    this.setupEventListeners();
+  }
+
+  private setupEventListeners(): void {
+    this.addEventListener(EventType.STATECHANGE, (event) => {
+      console.log('State:', event.data);
+    });
+  }
+
+  async handleUserAction(): Promise<void> {
+    await this.setState({ active: true });
+    this.emit('action', { timestamp: Date.now() });
+  }
+}
+```
+
+## Getting Help
+
+<CardGroup cols={2}>
+  <Card title="API Reference" icon="book" href="/api/component">
+    Complete API documentation for all Closure Next modules
+  </Card>
+  <Card title="TypeScript Guide" icon="code" href="/guides/typescript">
+    Learn TypeScript patterns and best practices
+  </Card>
+  <Card title="GitHub Issues" icon="github" href="https://github.com/MilesONerd/closure-next/issues">
+    Report migration issues or request help
+  </Card>
+  <Card title="Community" icon="users" href="https://github.com/MilesONerd/closure-next/discussions">
+    Join discussions with other developers
+  </Card>
+</CardGroup>

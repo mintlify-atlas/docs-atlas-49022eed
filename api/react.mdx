@@ -1,0 +1,318 @@
+---
+title: "React Integration"
+description: "React integration API for Closure Next components"
+---
+
+## Overview
+
+The `@closure-next/react` package provides a seamless integration between Closure Next components and React applications. It includes both hooks and component-based APIs for maximum flexibility.
+
+## Installation
+
+```bash
+npm install @closure-next/react
+```
+
+## Exports
+
+### Components
+
+<ResponseField name="ClosureComponent" type="React.ComponentType<ClosureComponentProps>">
+  A React component wrapper for Closure Next components.
+</ResponseField>
+
+### Hooks
+
+<ResponseField name="useClosureComponent" type="function">
+  A React hook that creates and manages a Closure Next component lifecycle.
+</ResponseField>
+
+### Classes
+
+<ResponseField name="ServerComponent" type="class">
+  Server-side rendering component with SSR support.
+</ResponseField>
+
+### Types
+
+<ResponseField name="Component" type="class">
+  Re-exported from `@closure-next/core`.
+</ResponseField>
+
+<ResponseField name="DOMHelper" type="class">
+  Re-exported from `@closure-next/core`.
+</ResponseField>
+
+<ResponseField name="ComponentState" type="type">
+  Re-exported from `@closure-next/core`.
+</ResponseField>
+
+<ResponseField name="ComponentInterface" type="interface">
+  Re-exported from `@closure-next/core`.
+</ResponseField>
+
+---
+
+## useClosureComponent
+
+```typescript
+function useClosureComponent<T extends Component>(
+  ComponentClass: { new(domHelper?: DOMHelper): T },
+  props?: Record<string, unknown>
+): React.RefObject<HTMLDivElement>
+```
+
+A React hook that creates and manages a Closure Next component, handling initialization, props updates, and cleanup automatically.
+
+### Parameters
+
+<ParamField path="ComponentClass" type="ComponentConstructor<T>" required>
+  The Closure Next component class constructor.
+</ParamField>
+
+<ParamField path="props" type="Record<string, unknown>">
+  Props to pass to the component. The hook will attempt to call setter methods (e.g., `setTitle` for a `title` prop) or directly assign property values.
+</ParamField>
+
+### Returns
+
+<ResponseField name="ref" type="React.RefObject<HTMLDivElement>">
+  A React ref object that should be attached to a DOM element where the Closure component will be rendered.
+</ResponseField>
+
+### Behavior
+
+- **Initialization**: Creates the component instance and renders it when the ref element becomes available
+- **Props Application**: Applies initial props after rendering by calling setter methods (e.g., `setTitle`) or setting properties directly
+- **Props Updates**: Watches for prop changes and updates the component accordingly
+- **Cleanup**: Automatically disposes the component when the hook unmounts
+
+### Example
+
+```tsx
+import { useClosureComponent } from '@closure-next/react';
+import { MyClosureComponent } from './my-component';
+
+function MyReactComponent() {
+  const ref = useClosureComponent(MyClosureComponent, {
+    title: 'Hello from Closure Next',
+    onClick: () => alert('Clicked!')
+  });
+
+  return <div ref={ref} />;
+}
+```
+
+### TypeScript Support
+
+```tsx
+import type { Component } from '@closure-next/core';
+import { useClosureComponent } from '@closure-next/react';
+
+class MyComponent extends Component {
+  setTitle(title: string): void { /* ... */ }
+  setOnClick(handler: () => void): void { /* ... */ }
+}
+
+function MyReactComponent() {
+  const ref = useClosureComponent<MyComponent>(MyComponent, {
+    title: 'Hello', // Type-checked if MyComponent has setTitle
+    onClick: () => {} // Type-checked if MyComponent has setOnClick
+  });
+
+  return <div ref={ref} />;
+}
+```
+
+---
+
+## ClosureComponent
+
+```typescript
+function ClosureComponent<T extends Component>({
+  component,
+  props
+}: ClosureComponentProps<T>): JSX.Element
+```
+
+A React component that wraps a Closure Next component, providing a declarative API for rendering Closure components.
+
+### Props
+
+<ParamField path="component" type="ComponentConstructor<T>" required>
+  The Closure Next component class to render.
+</ParamField>
+
+<ParamField path="props" type="Record<string, unknown>">
+  Props to pass to the Closure component.
+</ParamField>
+
+### Example
+
+```tsx
+import { ClosureComponent } from '@closure-next/react';
+import { MyClosureComponent } from './my-component';
+
+function MyReactComponent() {
+  return (
+    <ClosureComponent
+      component={MyClosureComponent}
+      props={{
+        title: 'Hello from Closure Next',
+        onClick: () => alert('Clicked!')
+      }}
+    />
+  );
+}
+```
+
+### Comparison with useClosureComponent
+
+- **ClosureComponent**: Declarative, component-based API
+- **useClosureComponent**: Imperative, hook-based API with more control
+
+Use `ClosureComponent` for simpler cases where you don't need direct access to the component instance. Use `useClosureComponent` when you need more control or want to access the component programmatically.
+
+---
+
+## ServerComponent
+
+```typescript
+class ServerComponent extends Component implements ComponentInterface {
+  constructor(domHelper: DOMHelper);
+  
+  async renderToString(): Promise<string>;
+  async hydrate(container?: HTMLElement): Promise<void>;
+  enableSSR(): void;
+  disableSSR(): void;
+  isSSREnabled(): boolean;
+}
+```
+
+A specialized component class for server-side rendering support.
+
+### Methods
+
+<ParamField path="renderToString" type="() => Promise<string>">
+  Renders the component to an HTML string for server-side rendering.
+  
+  **Returns**: A promise that resolves to the component's HTML as a string.
+  
+  **Throws**: Error if SSR is not enabled.
+</ParamField>
+
+<ParamField path="hydrate" type="(container?: HTMLElement) => Promise<void>">
+  Hydrates a server-rendered component on the client side.
+  
+  **Parameters**:
+  - `container`: Optional HTML element containing the server-rendered content. If not provided, uses the component's `id` to find the element.
+  
+  **Throws**: Error if SSR is not enabled or if no element is found for hydration.
+</ParamField>
+
+<ParamField path="enableSSR" type="() => void">
+  Enables server-side rendering for this component.
+</ParamField>
+
+<ParamField path="disableSSR" type="() => void">
+  Disables server-side rendering for this component.
+</ParamField>
+
+<ParamField path="isSSREnabled" type="() => boolean">
+  Returns whether SSR is currently enabled for this component.
+</ParamField>
+
+### Example
+
+```tsx
+import { ServerComponent } from '@closure-next/react';
+import { DOMHelper } from '@closure-next/core';
+
+class MyServerComponent extends ServerComponent {
+  constructor() {
+    super(new DOMHelper(document));
+  }
+  
+  async createDom() {
+    this.element = document.createElement('div');
+    this.element.textContent = 'Server-rendered content';
+  }
+}
+
+// Server-side
+const component = new MyServerComponent();
+const html = await component.renderToString();
+// Send html to client...
+
+// Client-side
+const clientComponent = new MyServerComponent();
+await clientComponent.hydrate(container);
+```
+
+---
+
+## Type Definitions
+
+### ClosureComponentProps
+
+```typescript
+interface ClosureComponentProps<T extends Component> {
+  component: { new(domHelper?: DOMHelper): T };
+  props?: Record<string, unknown>;
+}
+```
+
+Props interface for the `ClosureComponent` wrapper component.
+
+---
+
+## Best Practices
+
+### Prop Naming Conventions
+
+The hook attempts to call setter methods based on prop names:
+- Prop `title` → calls `setTitle(value)`
+- Prop `onClick` → calls `setOnClick(value)`
+- If no setter exists, sets the property directly
+
+Define setter methods in your Closure components for better prop handling:
+
+```typescript
+class MyComponent extends Component {
+  private _title: string = '';
+  
+  setTitle(title: string): void {
+    this._title = title;
+    // Update DOM
+    if (this.element) {
+      this.element.textContent = title;
+    }
+  }
+}
+```
+
+### Component Lifecycle
+
+The integration handles the full component lifecycle:
+1. **Mount**: Component is created and rendered
+2. **Update**: Props changes trigger setter calls
+3. **Unmount**: Component is disposed automatically
+
+Always implement proper cleanup in your component's `dispose()` method:
+
+```typescript
+class MyComponent extends Component {
+  dispose(): void {
+    // Clean up event listeners, timers, etc.
+    super.dispose();
+  }
+}
+```
+
+### SSR Considerations
+
+When using `ServerComponent`:
+- Enable SSR before calling `renderToString()`
+- Ensure component IDs are unique for proper hydration
+- Handle hydration errors gracefully
+- Test both server and client rendering paths

@@ -1,0 +1,260 @@
+---
+title: Lazy
+description: Lazy loading wrapper for deferred value initialization
+---
+
+The `Lazy<T>` class provides a generic lazy loading mechanism for values that should only be initialized when first accessed. It caches the result after the first load and supports resetting for re-initialization.
+
+## Constructor
+
+```typescript
+constructor(factory: () => Promise<T>)
+```
+
+<ParamField path="factory" type="() => Promise<T>" required>
+  An async factory function that produces the value when called. This function is only called once (unless reset).
+</ParamField>
+
+<ParamField path="T" type="type parameter">
+  The type of value that will be lazily loaded
+</ParamField>
+
+**Example:**
+```typescript
+import { Lazy } from '@closure/core';
+
+const lazyConfig = new Lazy(async () => {
+  const response = await fetch('/api/config');
+  return response.json();
+});
+```
+
+## Methods
+
+### get()
+
+Gets the value, initializing it on first access. Subsequent calls return the cached value.
+
+```typescript
+async get(): Promise<T>
+```
+
+**Returns:** `Promise<T>` - The lazily-loaded value
+
+**Example:**
+```typescript
+const lazyData = new Lazy(async () => {
+  console.log('Loading data...');
+  return { value: 42 };
+});
+
+// First call - runs factory function
+const data1 = await lazyData.get(); // Logs: 'Loading data...'
+console.log(data1); // { value: 42 }
+
+// Second call - returns cached value
+const data2 = await lazyData.get(); // No log - uses cache
+console.log(data2); // { value: 42 }
+console.log(data1 === data2); // true - same instance
+```
+
+### isLoaded()
+
+Checks if the value has been loaded.
+
+```typescript
+isLoaded(): boolean
+```
+
+**Returns:** `boolean` - True if the value has been initialized, false otherwise
+
+**Example:**
+```typescript
+const lazy = new Lazy(async () => ({ value: 42 }));
+
+console.log(lazy.isLoaded()); // false
+
+await lazy.get();
+console.log(lazy.isLoaded()); // true
+```
+
+### reset()
+
+Resets the lazy value, clearing the cached result. The next call to `get()` will re-run the factory function.
+
+```typescript
+reset(): void
+```
+
+**Example:**
+```typescript
+const lazy = new Lazy(async () => {
+  console.log('Creating value...');
+  return Math.random();
+});
+
+const first = await lazy.get(); // Logs: 'Creating value...'
+console.log(first); // e.g., 0.123
+
+lazy.reset();
+console.log(lazy.isLoaded()); // false
+
+const second = await lazy.get(); // Logs: 'Creating value...' again
+console.log(second); // e.g., 0.456 - different value
+```
+
+## Usage Examples
+
+### Lazy Configuration Loading
+
+```typescript
+import { Lazy } from '@closure/core';
+
+interface AppConfig {
+  apiUrl: string;
+  timeout: number;
+  features: string[];
+}
+
+const config = new Lazy<AppConfig>(async () => {
+  const response = await fetch('/api/config');
+  return response.json();
+});
+
+// Use in your app
+async function makeApiCall() {
+  const cfg = await config.get();
+  const response = await fetch(`${cfg.apiUrl}/data`, {
+    timeout: cfg.timeout
+  });
+  return response.json();
+}
+```
+
+### Lazy Database Connection
+
+```typescript
+interface Database {
+  query(sql: string): Promise<any>;
+  close(): void;
+}
+
+const db = new Lazy<Database>(async () => {
+  console.log('Establishing database connection...');
+  const connection = await connectToDatabase({
+    host: 'localhost',
+    port: 5432
+  });
+  return connection;
+});
+
+// Connection only created when first needed
+async function getUser(id: string) {
+  const database = await db.get();
+  return database.query(`SELECT * FROM users WHERE id = ${id}`);
+}
+```
+
+### Lazy Module Import
+
+```typescript
+interface Analytics {
+  track(event: string, data?: any): void;
+  identify(userId: string): void;
+}
+
+const analytics = new Lazy<Analytics>(async () => {
+  // Only load analytics in production
+  if (process.env.NODE_ENV === 'production') {
+    const module = await import('./analytics');
+    return new module.Analytics();
+  }
+  // Return no-op implementation in development
+  return {
+    track: () => {},
+    identify: () => {}
+  };
+});
+
+// Use throughout app
+async function onPageView(page: string) {
+  const tracker = await analytics.get();
+  tracker.track('page_view', { page });
+}
+```
+
+### Resetting Cached Values
+
+```typescript
+const userSession = new Lazy(async () => {
+  const response = await fetch('/api/session');
+  return response.json();
+});
+
+// Get initial session
+const session1 = await userSession.get();
+console.log('User:', session1.username);
+
+// After logout, reset to force reload on next access
+function logout() {
+  userSession.reset();
+  console.log('Session cleared');
+}
+
+logout();
+
+// Next access will fetch fresh session
+const session2 = await userSession.get(); // Makes new API call
+```
+
+### Conditional Lazy Loading
+
+```typescript
+function createLazyFeature(enabled: boolean) {
+  return new Lazy(async () => {
+    if (!enabled) {
+      throw new Error('Feature is disabled');
+    }
+    const module = await import('./feature');
+    return module.initialize();
+  });
+}
+
+const experimentalFeature = createLazyFeature(
+  process.env.ENABLE_EXPERIMENTAL === 'true'
+);
+
+try {
+  const feature = await experimentalFeature.get();
+  feature.run();
+} catch (error) {
+  console.log('Feature not available:', error.message);
+}
+```
+
+### Lazy with Error Handling
+
+```typescript
+const lazyResource = new Lazy(async () => {
+  const response = await fetch('/api/resource');
+  if (!response.ok) {
+    throw new Error(`Failed to load: ${response.status}`);
+  }
+  return response.json();
+});
+
+async function useResource() {
+  try {
+    const resource = await lazyResource.get();
+    console.log('Resource loaded:', resource);
+  } catch (error) {
+    console.error('Failed to load resource:', error);
+    // Reset so next attempt will retry
+    lazyResource.reset();
+  }
+}
+```
+
+## See Also
+
+- [Bundle](/api/bundle) - Module bundle management system

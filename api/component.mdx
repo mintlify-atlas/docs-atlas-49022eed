@@ -1,0 +1,334 @@
+---
+title: Component
+description: Base component class for building UI components in Closure Next
+---
+
+The `Component` class is the foundation for building UI components in Closure Next. It extends `EventTarget` and provides lifecycle methods, state management, parent-child relationships, and DOM rendering capabilities.
+
+## Constructor
+
+```typescript
+constructor(domHelper: DOMHelper)
+```
+
+<ParamField path="domHelper" type="DOMHelper" required>
+  The DOM helper instance used for DOM operations
+</ParamField>
+
+**Example:**
+```typescript
+import { Component, DOMHelper } from '@closure/core';
+
+const domHelper = new DOMHelper();
+const component = new Component(domHelper);
+```
+
+## Methods
+
+### getId()
+
+Gets the component's unique identifier.
+
+```typescript
+getId(): string
+```
+
+**Returns:** `string` - The component's ID
+
+**Example:**
+```typescript
+const id = component.getId();
+console.log(id); // ''
+```
+
+### setId()
+
+Sets the component's unique identifier and updates the DOM element's ID if it exists.
+
+```typescript
+setId(id: string): void
+```
+
+<ParamField path="id" type="string" required>
+  The unique identifier for the component
+</ParamField>
+
+**Example:**
+```typescript
+component.setId('my-component');
+console.log(component.getId()); // 'my-component'
+```
+
+### getElement()
+
+Gets the component's DOM element.
+
+```typescript
+getElement(): HTMLElement | null
+```
+
+**Returns:** `HTMLElement | null` - The component's DOM element, or null if not yet created
+
+**Example:**
+```typescript
+const element = component.getElement();
+if (element) {
+  element.classList.add('active');
+}
+```
+
+### addChild()
+
+Adds a child component to this component, establishing a parent-child relationship.
+
+```typescript
+addChild(child: ComponentInterface): void
+```
+
+<ParamField path="child" type="ComponentInterface" required>
+  The child component to add
+</ParamField>
+
+**Example:**
+```typescript
+const parent = new Component(domHelper);
+const child = new Component(domHelper);
+
+parent.addChild(child);
+console.log(child.getParent() === parent); // true
+```
+
+### removeChild()
+
+Removes a child component from this component, breaking the parent-child relationship.
+
+```typescript
+removeChild(child: ComponentInterface): void
+```
+
+<ParamField path="child" type="ComponentInterface" required>
+  The child component to remove
+</ParamField>
+
+**Example:**
+```typescript
+parent.removeChild(child);
+console.log(child.getParent()); // null
+```
+
+### getParent()
+
+Gets the parent component.
+
+```typescript
+getParent(): ComponentInterface | null
+```
+
+**Returns:** `ComponentInterface | null` - The parent component, or null if no parent
+
+**Example:**
+```typescript
+const parent = component.getParent();
+if (parent) {
+  console.log('Has parent');
+}
+```
+
+### getChildren()
+
+Gets all child components as an array.
+
+```typescript
+getChildren(): ComponentInterface[]
+```
+
+**Returns:** `ComponentInterface[]` - Array of child components
+
+**Example:**
+```typescript
+const children = component.getChildren();
+console.log(`Component has ${children.length} children`);
+```
+
+### getState()
+
+Gets a copy of the component's current state.
+
+```typescript
+getState(): ComponentState
+```
+
+**Returns:** `ComponentState` - A copy of the component's state object
+
+**Example:**
+```typescript
+const state = component.getState();
+console.log(state); // { count: 0 }
+```
+
+### setState()
+
+Updates the component's state and triggers a re-render if the state changed. Emits a `STATECHANGE` event.
+
+```typescript
+async setState(state: ComponentState): Promise<void>
+```
+
+<ParamField path="state" type="ComponentState" required>
+  Partial state object to merge with current state
+</ParamField>
+
+**Returns:** `Promise<void>`
+
+**Example:**
+```typescript
+await component.setState({ count: 1 });
+await component.setState({ count: 2, active: true });
+
+const state = component.getState();
+console.log(state); // { count: 2, active: true }
+```
+
+### render()
+
+Renders the component into a container element. Creates the DOM if not already created, manages parent-child relationships in the DOM, and renders all child components.
+
+```typescript
+async render(container: HTMLElement): Promise<void>
+```
+
+<ParamField path="container" type="HTMLElement" required>
+  The container element to render into
+</ParamField>
+
+**Returns:** `Promise<void>`
+
+**Example:**
+```typescript
+const container = document.getElementById('app');
+if (container) {
+  await component.render(container);
+}
+```
+
+### renderToString()
+
+Renders the component to an HTML string for server-side rendering.
+
+```typescript
+async renderToString(): Promise<string>
+```
+
+**Returns:** `Promise<string>` - The component's HTML as a string
+
+**Example:**
+```typescript
+const html = await component.renderToString();
+console.log(html); // '<div id="my-component"></div>'
+```
+
+### hydrate()
+
+Hydrates the component from existing DOM elements. Useful for attaching to server-rendered HTML.
+
+```typescript
+async hydrate(container?: HTMLElement): Promise<void>
+```
+
+<ParamField path="container" type="HTMLElement">
+  Optional container element. If provided, uses the first child element. If not provided, uses getElementById with the component's ID.
+</ParamField>
+
+**Returns:** `Promise<void>`
+
+**Example:**
+```typescript
+// Hydrate using component ID
+component.setId('my-component');
+await component.hydrate();
+
+// Hydrate from container
+const container = document.getElementById('app');
+await component.hydrate(container);
+```
+
+### dispose()
+
+Disposes of the component, cleaning up all resources. Disposes all child components, removes from parent, removes from DOM, and emits a `DISPOSE` event.
+
+```typescript
+dispose(): void
+```
+
+**Example:**
+```typescript
+component.dispose();
+console.log(component.isDisposed()); // true
+```
+
+## Inherited from EventTarget
+
+The Component class inherits all event handling methods from `EventTarget`:
+
+- `addEventListener(type, listener)` - See [EventTarget](/api/event-target#addeventlistener)
+- `removeEventListener(type, listener)` - See [EventTarget](/api/event-target#removeeventlistener)
+- `emit(type, data)` - See [EventTarget](/api/event-target#emit)
+- `dispatchEvent(type, data)` - See [EventTarget](/api/event-target#dispatchevent)
+- `isDisposed()` - See [EventTarget](/api/event-target#isdisposed)
+
+## Events
+
+Components emit the following events:
+
+### STATECHANGE
+
+Emitted when the component's state changes via `setState()` or after rendering.
+
+```typescript
+component.addEventListener('statechange', (event) => {
+  console.log('State changed:', event.data);
+});
+```
+
+### DISPOSE
+
+Emitted when the component is disposed.
+
+```typescript
+component.addEventListener('dispose', () => {
+  console.log('Component disposed');
+});
+```
+
+## Types
+
+### ComponentState
+
+```typescript
+interface ComponentState {
+  [key: string]: any;
+}
+```
+
+### ComponentInterface
+
+```typescript
+interface ComponentInterface extends EventTargetInterface {
+  getId(): string;
+  setId(id: string): void;
+  addChild(child: ComponentInterface): void;
+  removeChild(child: ComponentInterface): void;
+  getParent(): ComponentInterface | null;
+  getChildren(): ComponentInterface[];
+  getState(): ComponentState;
+  setState(state: ComponentState): Promise<void>;
+  render(container: HTMLElement): Promise<void>;
+  renderToString(): Promise<string>;
+  hydrate(): Promise<void>;
+}
+```
+
+## See Also
+
+- [EventTarget](/api/event-target) - Base class for event handling
+- [DOMHelper](/api/dom-helper) - DOM manipulation utilities

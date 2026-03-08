@@ -1,0 +1,479 @@
+---
+title: "Webpack Plugin API"
+description: "Webpack integration for Closure Next applications"
+icon: "webpack"
+---
+
+The `@closure-next/webpack` package provides a Webpack plugin for seamless integration of Closure Next components into Webpack-based projects.
+
+## Installation
+
+```bash
+npm install @closure-next/webpack webpack
+```
+
+## Quick Start
+
+```javascript
+// webpack.config.js
+const { ClosureNextWebpackPlugin } = require('@closure-next/webpack');
+
+module.exports = {
+  // ... other config
+  plugins: [
+    new ClosureNextWebpackPlugin({
+      codeSplitting: true,
+      treeShaking: true
+    })
+  ]
+};
+```
+
+## API Reference
+
+### ClosureNextWebpackPlugin
+
+The main plugin class for Webpack integration.
+
+```typescript
+class ClosureNextWebpackPlugin {
+  constructor(options?: ClosureNextWebpackOptions)
+}
+```
+
+<ParamField path="options" type="ClosureNextWebpackOptions">
+  Configuration options for the plugin.
+</ParamField>
+
+#### ClosureNextWebpackOptions
+
+<ParamField path="codeSplitting" type="boolean" default="true">
+  Enable automatic code splitting for Closure Next components. Creates a separate chunk for `@closure-next/*` packages to improve caching and load times.
+  
+  ```javascript
+  new ClosureNextWebpackPlugin({
+    codeSplitting: true
+  })
+  ```
+</ParamField>
+
+<ParamField path="treeShaking" type="boolean" default="true">
+  Enable tree shaking optimizations. Removes unused exports from Closure Next packages, reducing bundle size.
+  
+  ```javascript
+  new ClosureNextWebpackPlugin({
+    treeShaking: true
+  })
+  ```
+</ParamField>
+
+<ParamField path="paths" type="Record<string, string>">
+  Custom module resolution paths. Configure aliases for cleaner imports.
+  
+  ```javascript
+  new ClosureNextWebpackPlugin({
+    paths: {
+      '@components': path.resolve(__dirname, 'src/components'),
+      '@utils': path.resolve(__dirname, 'src/utils')
+    }
+  })
+  ```
+</ParamField>
+
+## Configuration Examples
+
+### Basic Configuration
+
+```javascript
+// webpack.config.js
+const { ClosureNextWebpackPlugin } = require('@closure-next/webpack');
+const path = require('path');
+
+module.exports = {
+  mode: 'production',
+  entry: './src/index.ts',
+  output: {
+    path: path.resolve(__dirname, 'dist'),
+    filename: 'bundle.js'
+  },
+  plugins: [
+    new ClosureNextWebpackPlugin()
+  ]
+};
+```
+
+### Full Configuration
+
+```javascript
+// webpack.config.js
+const { ClosureNextWebpackPlugin } = require('@closure-next/webpack');
+const path = require('path');
+
+module.exports = {
+  mode: 'production',
+  entry: './src/index.ts',
+  output: {
+    path: path.resolve(__dirname, 'dist'),
+    filename: '[name].[contenthash].js',
+    clean: true
+  },
+  resolve: {
+    extensions: ['.ts', '.tsx', '.js', '.jsx']
+  },
+  plugins: [
+    new ClosureNextWebpackPlugin({
+      codeSplitting: true,
+      treeShaking: true,
+      paths: {
+        '@components': path.resolve(__dirname, 'src/components'),
+        '@closure-next/core': path.resolve(__dirname, 'node_modules/@closure-next/core')
+      }
+    })
+  ]
+};
+```
+
+### Development Configuration
+
+```javascript
+// webpack.dev.js
+const { ClosureNextWebpackPlugin } = require('@closure-next/webpack');
+
+module.exports = {
+  mode: 'development',
+  devtool: 'inline-source-map',
+  devServer: {
+    static: './dist',
+    hot: true
+  },
+  plugins: [
+    new ClosureNextWebpackPlugin({
+      // Disable optimizations in development
+      codeSplitting: false,
+      treeShaking: false
+    })
+  ]
+};
+```
+
+## Features
+
+### Automatic Code Splitting
+
+When `codeSplitting` is enabled, the plugin automatically creates a separate chunk for all `@closure-next/*` packages:
+
+```javascript
+// Results in separate chunks:
+// - main.bundle.js (your code)
+// - closure-next.bundle.js (Closure Next packages)
+
+new ClosureNextWebpackPlugin({
+  codeSplitting: true
+});
+```
+
+Benefits:
+- **Better caching**: Closure Next code changes less frequently than your app code
+- **Parallel loading**: Browser can load chunks simultaneously
+- **Reduced main bundle size**: Improves initial load time
+
+### Tree Shaking
+
+The plugin enables Webpack's tree shaking for Closure Next packages:
+
+```typescript
+// You only import what you use
+import { Component } from '@closure-next/core';
+// Other unused exports are removed from the bundle
+
+new ClosureNextWebpackPlugin({
+  treeShaking: true
+});
+```
+
+<Note>
+  Tree shaking requires ES modules. Make sure your Webpack configuration uses `"type": "module"` in package.json or set `optimization.usedExports: true`.
+</Note>
+
+### Module Resolution
+
+Customize how modules are resolved:
+
+```javascript
+new ClosureNextWebpackPlugin({
+  paths: {
+    // Alias for cleaner imports
+    '@components': path.resolve(__dirname, 'src/components'),
+    '@shared': path.resolve(__dirname, 'src/shared'),
+    
+    // Override package resolution
+    '@closure-next/core': path.resolve(__dirname, 'custom/core')
+  }
+});
+```
+
+```typescript
+// Now you can use clean imports
+import { MyComponent } from '@components/MyComponent';
+import { util } from '@shared/utils';
+```
+
+### TypeScript Support
+
+The plugin automatically configures `ts-loader` for TypeScript files:
+
+```javascript
+// No need to manually configure ts-loader
+new ClosureNextWebpackPlugin();
+
+// The plugin adds this rule automatically:
+// {
+//   test: /\.(ts|tsx)$/,
+//   exclude: /node_modules/,
+//   use: [{ loader: 'ts-loader', options: { transpileOnly: true } }]
+// }
+```
+
+## Integration Examples
+
+### With React
+
+```javascript
+// webpack.config.js
+const { ClosureNextWebpackPlugin } = require('@closure-next/webpack');
+const HtmlWebpackPlugin = require('html-webpack-plugin');
+
+module.exports = {
+  entry: './src/index.tsx',
+  module: {
+    rules: [
+      {
+        test: /\.(js|jsx|ts|tsx)$/,
+        exclude: /node_modules/,
+        use: ['babel-loader']
+      }
+    ]
+  },
+  plugins: [
+    new ClosureNextWebpackPlugin({
+      codeSplitting: true
+    }),
+    new HtmlWebpackPlugin({
+      template: './public/index.html'
+    })
+  ]
+};
+```
+
+### With Vue
+
+```javascript
+// webpack.config.js
+const { ClosureNextWebpackPlugin } = require('@closure-next/webpack');
+const { VueLoaderPlugin } = require('vue-loader');
+
+module.exports = {
+  entry: './src/main.ts',
+  module: {
+    rules: [
+      {
+        test: /\.vue$/,
+        loader: 'vue-loader'
+      }
+    ]
+  },
+  plugins: [
+    new VueLoaderPlugin(),
+    new ClosureNextWebpackPlugin({
+      treeShaking: true,
+      paths: {
+        '@': path.resolve(__dirname, 'src')
+      }
+    })
+  ]
+};
+```
+
+### With CSS
+
+```javascript
+// webpack.config.js
+const { ClosureNextWebpackPlugin } = require('@closure-next/webpack');
+const MiniCssExtractPlugin = require('mini-css-extract-plugin');
+
+module.exports = {
+  module: {
+    rules: [
+      {
+        test: /\.css$/,
+        use: [MiniCssExtractPlugin.loader, 'css-loader']
+      }
+    ]
+  },
+  plugins: [
+    new ClosureNextWebpackPlugin(),
+    new MiniCssExtractPlugin({
+      filename: '[name].[contenthash].css'
+    })
+  ]
+};
+```
+
+## Optimization
+
+### Production Build
+
+```javascript
+// webpack.prod.js
+const { ClosureNextWebpackPlugin } = require('@closure-next/webpack');
+const TerserPlugin = require('terser-webpack-plugin');
+
+module.exports = {
+  mode: 'production',
+  optimization: {
+    minimize: true,
+    minimizer: [
+      new TerserPlugin({
+        terserOptions: {
+          compress: {
+            drop_console: true
+          }
+        }
+      })
+    ],
+    splitChunks: {
+      chunks: 'all',
+      cacheGroups: {
+        vendor: {
+          test: /[\\/]node_modules[\\/]/,
+          name: 'vendors',
+          priority: 10
+        }
+      }
+    }
+  },
+  plugins: [
+    new ClosureNextWebpackPlugin({
+      codeSplitting: true,
+      treeShaking: true
+    })
+  ]
+};
+```
+
+### Bundle Analysis
+
+```javascript
+const { ClosureNextWebpackPlugin } = require('@closure-next/webpack');
+const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer');
+
+module.exports = {
+  plugins: [
+    new ClosureNextWebpackPlugin(),
+    new BundleAnalyzerPlugin({
+      analyzerMode: 'static',
+      openAnalyzer: false
+    })
+  ]
+};
+```
+
+## TypeScript Definitions
+
+```typescript
+import type { Compiler, WebpackPluginInstance } from 'webpack';
+
+interface ClosureNextWebpackOptions {
+  codeSplitting?: boolean;
+  treeShaking?: boolean;
+  paths?: Record<string, string>;
+}
+
+class ClosureNextWebpackPlugin implements WebpackPluginInstance {
+  constructor(options?: ClosureNextWebpackOptions);
+  apply(compiler: Compiler): void;
+}
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Enable code splitting in production">
+    Always enable code splitting for production builds to improve caching:
+    
+    ```javascript
+    new ClosureNextWebpackPlugin({
+      codeSplitting: process.env.NODE_ENV === 'production'
+    })
+    ```
+  </Accordion>
+  
+  <Accordion title="Use path aliases consistently">
+    Define aliases once in the plugin and use them throughout your codebase:
+    
+    ```javascript
+    const paths = {
+      '@components': path.resolve(__dirname, 'src/components'),
+      '@utils': path.resolve(__dirname, 'src/utils')
+    };
+    
+    new ClosureNextWebpackPlugin({ paths });
+    ```
+  </Accordion>
+  
+  <Accordion title="Optimize for different environments">
+    Use different configurations for development and production:
+    
+    ```javascript
+    const isDev = process.env.NODE_ENV === 'development';
+    
+    new ClosureNextWebpackPlugin({
+      codeSplitting: !isDev,
+      treeShaking: !isDev
+    });
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Module not found errors">
+    Ensure paths are absolute and correct:
+    
+    ```javascript
+    const path = require('path');
+    
+    new ClosureNextWebpackPlugin({
+      paths: {
+        '@components': path.resolve(__dirname, 'src/components') // Absolute path
+      }
+    });
+    ```
+  </Accordion>
+  
+  <Accordion title="TypeScript compilation errors">
+    Make sure you have `ts-loader` installed:
+    
+    ```bash
+    npm install --save-dev ts-loader typescript
+    ```
+  </Accordion>
+  
+  <Accordion title="Code splitting not working">
+    Verify that optimization settings aren't conflicting:
+    
+    ```javascript
+    module.exports = {
+      optimization: {
+        splitChunks: {
+          chunks: 'all' // Required for code splitting
+        }
+      },
+      plugins: [
+        new ClosureNextWebpackPlugin({ codeSplitting: true })
+      ]
+    };
+    ```
+  </Accordion>
+</AccordionGroup>

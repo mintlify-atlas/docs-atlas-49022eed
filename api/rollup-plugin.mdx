@@ -1,0 +1,577 @@
+---
+title: "Rollup Plugin API"
+description: "Rollup integration for Closure Next applications"
+icon: "box"
+---
+
+The `@closure-next/rollup` package provides a Rollup plugin for bundling Closure Next components with optimal tree shaking and code splitting.
+
+## Installation
+
+```bash
+npm install @closure-next/rollup rollup
+```
+
+## Quick Start
+
+```javascript
+// rollup.config.js
+import { closureNextRollup } from '@closure-next/rollup';
+
+export default {
+  input: 'src/index.ts',
+  output: {
+    file: 'dist/bundle.js',
+    format: 'esm'
+  },
+  plugins: [
+    closureNextRollup()
+  ]
+};
+```
+
+## API Reference
+
+### closureNextRollup
+
+Creates a Rollup plugin for Closure Next integration.
+
+```typescript
+function closureNextRollup(options?: ClosureNextRollupOptions): Plugin
+```
+
+<ParamField path="options" type="ClosureNextRollupOptions">
+  Configuration options for the plugin.
+</ParamField>
+
+<ResponseField name="returns" type="Plugin">
+  A Rollup plugin instance.
+</ResponseField>
+
+#### ClosureNextRollupOptions
+
+<ParamField path="codeSplitting" type="boolean">
+  Enable code splitting for Closure Next components. When enabled, components can be split into separate chunks.
+  
+  ```javascript
+  closureNextRollup({
+    codeSplitting: true
+  })
+  ```
+</ParamField>
+
+<ParamField path="paths" type="Record<string, string>">
+  Custom module resolution paths. Configure aliases for cleaner imports.
+  
+  ```javascript
+  closureNextRollup({
+    paths: {
+      '@components': './src/components',
+      '@utils': './src/utils'
+    }
+  })
+  ```
+</ParamField>
+
+## Configuration Examples
+
+### Basic Configuration
+
+```javascript
+// rollup.config.js
+import { closureNextRollup } from '@closure-next/rollup';
+import resolve from '@rollup/plugin-node-resolve';
+import typescript from '@rollup/plugin-typescript';
+
+export default {
+  input: 'src/index.ts',
+  output: {
+    file: 'dist/bundle.js',
+    format: 'esm'
+  },
+  plugins: [
+    resolve(),
+    typescript(),
+    closureNextRollup()
+  ]
+};
+```
+
+### Multiple Outputs
+
+```javascript
+// rollup.config.js
+import { closureNextRollup } from '@closure-next/rollup';
+import resolve from '@rollup/plugin-node-resolve';
+import typescript from '@rollup/plugin-typescript';
+
+export default {
+  input: 'src/index.ts',
+  output: [
+    {
+      file: 'dist/bundle.esm.js',
+      format: 'esm'
+    },
+    {
+      file: 'dist/bundle.cjs.js',
+      format: 'cjs'
+    },
+    {
+      file: 'dist/bundle.umd.js',
+      format: 'umd',
+      name: 'ClosureNext'
+    }
+  ],
+  plugins: [
+    resolve(),
+    typescript(),
+    closureNextRollup()
+  ]
+};
+```
+
+### With Code Splitting
+
+```javascript
+// rollup.config.js
+import { closureNextRollup } from '@closure-next/rollup';
+import resolve from '@rollup/plugin-node-resolve';
+import typescript from '@rollup/plugin-typescript';
+
+export default {
+  input: 'src/index.ts',
+  output: {
+    dir: 'dist',
+    format: 'esm',
+    entryFileNames: '[name].[hash].js',
+    chunkFileNames: '[name].[hash].js'
+  },
+  plugins: [
+    resolve(),
+    typescript(),
+    closureNextRollup({
+      codeSplitting: true
+    })
+  ]
+};
+```
+
+### Production Build
+
+```javascript
+// rollup.config.prod.js
+import { closureNextRollup } from '@closure-next/rollup';
+import resolve from '@rollup/plugin-node-resolve';
+import typescript from '@rollup/plugin-typescript';
+import terser from '@rollup/plugin-terser';
+
+export default {
+  input: 'src/index.ts',
+  output: {
+    file: 'dist/bundle.min.js',
+    format: 'esm',
+    sourcemap: true
+  },
+  plugins: [
+    resolve(),
+    typescript(),
+    closureNextRollup({
+      codeSplitting: true
+    }),
+    terser({
+      compress: {
+        drop_console: true,
+        drop_debugger: true
+      }
+    })
+  ]
+};
+```
+
+## Features
+
+### Module Resolution
+
+The plugin provides custom module resolution for path aliases:
+
+```javascript
+closureNextRollup({
+  paths: {
+    '@components': './src/components',
+    '@utils': './src/utils',
+    '@closure-next/core': './custom/core'
+  }
+});
+```
+
+```typescript
+// Use clean imports
+import { MyComponent } from '@components/MyComponent';
+import { formatDate } from '@utils/date';
+```
+
+### TypeScript Transform
+
+Automatically transforms TypeScript imports to JavaScript:
+
+```typescript
+// Write this
+import { Component } from './Component.ts';
+import { util } from './utils.ts';
+
+// Plugin transforms to this
+import { Component } from './Component.js';
+import { util } from './utils.js';
+```
+
+### Tree Shaking
+
+Rollup's built-in tree shaking works seamlessly with Closure Next:
+
+```typescript
+// Only imported components are included in the bundle
+import { Component } from '@closure-next/core';
+// Other unused exports are automatically removed
+```
+
+## Integration Examples
+
+### With TypeScript
+
+```javascript
+// rollup.config.js
+import { closureNextRollup } from '@closure-next/rollup';
+import typescript from '@rollup/plugin-typescript';
+import resolve from '@rollup/plugin-node-resolve';
+
+export default {
+  input: 'src/index.ts',
+  output: {
+    file: 'dist/index.js',
+    format: 'esm'
+  },
+  plugins: [
+    resolve(),
+    typescript({
+      tsconfig: './tsconfig.json',
+      declaration: true,
+      declarationDir: './dist/types'
+    }),
+    closureNextRollup()
+  ]
+};
+```
+
+### With CommonJS
+
+```javascript
+// rollup.config.js
+import { closureNextRollup } from '@closure-next/rollup';
+import commonjs from '@rollup/plugin-commonjs';
+import resolve from '@rollup/plugin-node-resolve';
+
+export default {
+  input: 'src/index.ts',
+  output: {
+    file: 'dist/bundle.cjs',
+    format: 'cjs'
+  },
+  plugins: [
+    resolve(),
+    commonjs(),
+    closureNextRollup()
+  ]
+};
+```
+
+### Building a Library
+
+```javascript
+// rollup.config.js
+import { closureNextRollup } from '@closure-next/rollup';
+import resolve from '@rollup/plugin-node-resolve';
+import typescript from '@rollup/plugin-typescript';
+import { terser } from 'rollup-plugin-terser';
+import dts from 'rollup-plugin-dts';
+
+export default [
+  // JavaScript bundle
+  {
+    input: 'src/index.ts',
+    output: [
+      {
+        file: 'dist/index.js',
+        format: 'esm',
+        sourcemap: true
+      },
+      {
+        file: 'dist/index.cjs',
+        format: 'cjs',
+        sourcemap: true
+      }
+    ],
+    external: ['@closure-next/core'],
+    plugins: [
+      resolve(),
+      typescript(),
+      closureNextRollup(),
+      terser()
+    ]
+  },
+  // TypeScript definitions
+  {
+    input: 'src/index.ts',
+    output: {
+      file: 'dist/index.d.ts',
+      format: 'esm'
+    },
+    plugins: [dts()]
+  }
+];
+```
+
+## Advanced Usage
+
+### Dynamic Imports
+
+```typescript
+// Lazy load components
+const loadComponent = async () => {
+  const { MyComponent } = await import('./components/MyComponent.ts');
+  return MyComponent;
+};
+
+// Rollup automatically creates separate chunks
+```
+
+### External Dependencies
+
+```javascript
+// rollup.config.js
+import { closureNextRollup } from '@closure-next/rollup';
+
+export default {
+  input: 'src/index.ts',
+  output: {
+    file: 'dist/bundle.js',
+    format: 'esm'
+  },
+  external: [
+    '@closure-next/core',
+    '@closure-next/web-components'
+  ],
+  plugins: [
+    closureNextRollup()
+  ]
+};
+```
+
+### Watch Mode
+
+```javascript
+// rollup.config.js
+import { closureNextRollup } from '@closure-next/rollup';
+
+export default {
+  input: 'src/index.ts',
+  output: {
+    file: 'dist/bundle.js',
+    format: 'esm'
+  },
+  plugins: [
+    closureNextRollup()
+  ],
+  watch: {
+    include: 'src/**',
+    exclude: 'node_modules/**'
+  }
+};
+```
+
+```bash
+# Start watch mode
+rollup -c -w
+```
+
+### Source Maps
+
+```javascript
+// rollup.config.js
+import { closureNextRollup } from '@closure-next/rollup';
+
+export default {
+  input: 'src/index.ts',
+  output: {
+    file: 'dist/bundle.js',
+    format: 'esm',
+    sourcemap: true, // Enable source maps
+    sourcemapExcludeSources: false
+  },
+  plugins: [
+    closureNextRollup()
+  ]
+};
+```
+
+## Optimization
+
+### Manual Chunking
+
+```javascript
+// rollup.config.js
+import { closureNextRollup } from '@closure-next/rollup';
+
+export default {
+  input: 'src/index.ts',
+  output: {
+    dir: 'dist',
+    format: 'esm',
+    manualChunks: {
+      'closure-next-vendor': ['@closure-next/core'],
+      'components': ['./src/components/Component1', './src/components/Component2']
+    }
+  },
+  plugins: [
+    closureNextRollup()
+  ]
+};
+```
+
+### Minimization
+
+```javascript
+// rollup.config.js
+import { closureNextRollup } from '@closure-next/rollup';
+import terser from '@rollup/plugin-terser';
+
+export default {
+  input: 'src/index.ts',
+  output: {
+    file: 'dist/bundle.min.js',
+    format: 'esm'
+  },
+  plugins: [
+    closureNextRollup(),
+    terser({
+      compress: {
+        passes: 2,
+        drop_console: true
+      },
+      format: {
+        comments: false
+      }
+    })
+  ]
+};
+```
+
+## TypeScript Definitions
+
+```typescript
+import type { Plugin } from 'rollup';
+
+interface ClosureNextRollupOptions {
+  codeSplitting?: boolean;
+  paths?: Record<string, string>;
+}
+
+export function closureNextRollup(
+  options?: ClosureNextRollupOptions
+): Plugin;
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Use external for peer dependencies">
+    Mark peer dependencies as external to avoid bundling them:
+    
+    ```javascript
+    export default {
+      external: [
+        '@closure-next/core',
+        /^@closure-next\//  // All @closure-next packages
+      ],
+      plugins: [closureNextRollup()]
+    };
+    ```
+  </Accordion>
+  
+  <Accordion title="Enable source maps in development">
+    Always generate source maps during development:
+    
+    ```javascript
+    export default {
+      output: {
+        sourcemap: process.env.NODE_ENV === 'development'
+      },
+      plugins: [closureNextRollup()]
+    };
+    ```
+  </Accordion>
+  
+  <Accordion title="Configure path aliases consistently">
+    Use the same aliases across your tooling:
+    
+    ```javascript
+    const aliases = {
+      '@components': './src/components',
+      '@utils': './src/utils'
+    };
+    
+    // rollup.config.js
+    export default {
+      plugins: [
+        closureNextRollup({ paths: aliases })
+      ]
+    };
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Module resolution errors">
+    Ensure path aliases are correctly configured:
+    
+    ```javascript
+    import path from 'path';
+    
+    closureNextRollup({
+      paths: {
+        '@components': path.resolve(__dirname, 'src/components')
+      }
+    })
+    ```
+  </Accordion>
+  
+  <Accordion title="TypeScript imports not transforming">
+    Make sure the Closure Next plugin is loaded after the TypeScript plugin:
+    
+    ```javascript
+    plugins: [
+      typescript(),      // First
+      closureNextRollup() // Second
+    ]
+    ```
+  </Accordion>
+  
+  <Accordion title="Tree shaking not working">
+    Verify your package.json has sideEffects configured:
+    
+    ```json
+    {
+      "sideEffects": false
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Performance Tips
+
+- Use `external` for dependencies that shouldn't be bundled
+- Enable code splitting for large applications
+- Configure manual chunks for optimal caching
+- Use terser for production minification
+- Enable watch mode during development for faster rebuilds

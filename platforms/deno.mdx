@@ -1,0 +1,551 @@
+---
+title: 'Deno Support'
+description: 'Run Closure Next in the Deno runtime with ESM-first architecture'
+icon: 'circle-d'
+---
+
+## Overview
+
+The `@closure-next/deno` package provides first-class Deno support for Closure Next, leveraging Deno's modern ESM-first architecture and built-in TypeScript support.
+
+## Installation
+
+Import directly from npm or a CDN:
+
+```typescript
+import {
+  Component,
+  ComponentState,
+  EventTarget,
+  DomHelper
+} from 'npm:@closure-next/core';
+
+import {
+  createDenoElement,
+  querySelector,
+  querySelectorAll,
+  isDeno
+} from 'npm:@closure-next/deno';
+```
+
+Or use import maps in `deno.json`:
+
+```json
+{
+  "imports": {
+    "@closure-next/core": "npm:@closure-next/core@^1.0.0",
+    "@closure-next/deno": "npm:@closure-next/deno@^1.1.0"
+  }
+}
+```
+
+Then import:
+
+```typescript
+import { Component } from '@closure-next/core';
+import { createDenoElement } from '@closure-next/deno';
+```
+
+## Core Exports
+
+The Deno package re-exports all core Closure Next functionality:
+
+```typescript
+import {
+  // Core component classes
+  Component,
+  ComponentState,
+  ComponentEventType,
+  EventTarget,
+  DomHelper,
+  utils,
+  
+  // Deno-specific utilities
+  createDenoElement,
+  querySelector,
+  querySelectorAll,
+  isDeno
+} from '@closure-next/deno';
+```
+
+## Deno-Specific Utilities
+
+### createDenoElement()
+
+Create DOM elements with Deno's document API:
+
+```typescript
+import { createDenoElement } from '@closure-next/deno';
+
+const div = createDenoElement('div');
+div.className = 'container';
+div.textContent = 'Hello from Deno!';
+
+document.body.appendChild(div);
+```
+
+### querySelector()
+
+Query elements from the document:
+
+```typescript
+import { querySelector } from '@closure-next/deno';
+
+const element = querySelector('.container');
+if (element) {
+  console.log(element.textContent);
+}
+```
+
+### querySelectorAll()
+
+Query multiple elements (returns an array):
+
+```typescript
+import { querySelectorAll } from '@closure-next/deno';
+
+const buttons = querySelectorAll('button');
+buttons.forEach(button => {
+  button.addEventListener('click', () => {
+    console.log('Button clicked!');
+  });
+});
+```
+
+### isDeno
+
+Detect the Deno runtime:
+
+```typescript
+import { isDeno } from '@closure-next/deno';
+
+if (isDeno) {
+  console.log('Running in Deno!');
+  console.log('Version:', Deno.version.deno);
+} else {
+  console.log('Not running in Deno');
+}
+```
+
+## Building Components
+
+Create Closure Next components in Deno:
+
+```typescript
+import { Component, DomHelper } from '@closure-next/deno';
+import { createDenoElement } from '@closure-next/deno';
+
+class GreetingCard extends Component {
+  private name: string = 'World';
+
+  constructor(domHelper?: DomHelper) {
+    super(domHelper || new DomHelper(document));
+  }
+
+  setName(name: string): void {
+    this.name = name;
+    this.updateDisplay();
+  }
+
+  getName(): string {
+    return this.name;
+  }
+
+  protected override createDom(): void {
+    super.createDom();
+    const element = this.getElement();
+    if (element) {
+      element.className = 'greeting-card';
+      this.updateDisplay();
+    }
+  }
+
+  private updateDisplay(): void {
+    const element = this.getElement();
+    if (element) {
+      element.innerHTML = `
+        <h2>Hello, ${this.name}!</h2>
+        <p>Welcome to Closure Next on Deno</p>
+      `;
+    }
+  }
+}
+
+// Create and render component
+const component = new GreetingCard();
+component.setName('Deno');
+
+const container = createDenoElement('div');
+document.body.appendChild(container);
+
+await component.render(container);
+```
+
+## ESM Modules
+
+Deno uses ESM by default, making imports straightforward:
+
+<CodeGroup>
+
+```typescript Direct Import
+import { Component } from 'npm:@closure-next/core';
+import { createDenoElement } from 'npm:@closure-next/deno';
+```
+
+```typescript Import Maps
+// deno.json
+{
+  "imports": {
+    "@closure-next/core": "npm:@closure-next/core@^1.0.0"
+  }
+}
+
+// main.ts
+import { Component } from '@closure-next/core';
+```
+
+```typescript CDN Import
+import { Component } from 'https://esm.sh/@closure-next/core@1.0.0';
+```
+
+</CodeGroup>
+
+## File Structure
+
+A typical Deno project with Closure Next:
+
+```
+my-deno-app/
+├── deno.json          # Deno configuration and import maps
+├── deps.ts            # Centralized dependencies
+├── mod.ts             # Main module
+└── components/
+    ├── card.ts
+    ├── button.ts
+    └── list.ts
+```
+
+### deps.ts Pattern
+
+Centralize your dependencies:
+
+```typescript
+// deps.ts
+export {
+  Component,
+  ComponentState,
+  ComponentEventType,
+  EventTarget,
+  DomHelper,
+  utils
+} from 'npm:@closure-next/core';
+
+export {
+  createDenoElement,
+  querySelector,
+  querySelectorAll,
+  isDeno
+} from 'npm:@closure-next/deno';
+```
+
+Then import from deps:
+
+```typescript
+// components/button.ts
+import { Component, createDenoElement } from '../deps.ts';
+
+class Button extends Component {
+  // Implementation...
+}
+```
+
+## Running Deno Applications
+
+### CLI Commands
+
+```bash
+# Run application
+deno run --allow-net --allow-read main.ts
+
+# Run with DOM and window access
+deno run --allow-net --allow-env --allow-read main.ts
+
+# Run tests
+deno test --allow-net --allow-read
+
+# Type check
+deno check main.ts
+
+# Format code
+deno fmt
+
+# Lint code
+deno lint
+```
+
+### deno.json Configuration
+
+```json
+{
+  "compilerOptions": {
+    "lib": ["deno.window", "dom", "dom.iterable"],
+    "strict": true
+  },
+  "imports": {
+    "@closure-next/core": "npm:@closure-next/core@^1.0.0",
+    "@closure-next/deno": "npm:@closure-next/deno@^1.1.0"
+  },
+  "tasks": {
+    "dev": "deno run --watch --allow-net --allow-read main.ts",
+    "test": "deno test --allow-net --allow-read",
+    "check": "deno check **/*.ts"
+  }
+}
+```
+
+## Event Handling
+
+Handle events in Deno applications:
+
+```typescript
+import { Component } from '@closure-next/deno';
+
+class InteractiveComponent extends Component {
+  constructor() {
+    super();
+    this.addEventListener('click', this.handleClick.bind(this));
+  }
+
+  private handleClick(event: Event): void {
+    console.log('Component clicked!');
+    
+    // Deno-specific: access Deno APIs
+    if (isDeno) {
+      console.log('Deno version:', Deno.version.deno);
+    }
+  }
+}
+
+const component = new InteractiveComponent();
+const element = component.getElement();
+
+if (element) {
+  const event = new Event('click');
+  element.dispatchEvent(event);
+}
+```
+
+## Testing
+
+Test your components with Deno's built-in test runner:
+
+```typescript
+import { assertEquals, assertExists } from 'https://deno.land/std/assert/mod.ts';
+import { Component } from '@closure-next/deno';
+import { createDenoElement, querySelector } from '@closure-next/deno';
+
+Deno.test('Component creation', () => {
+  const component = new Component();
+  assertExists(component);
+});
+
+Deno.test('Element creation', () => {
+  const element = createDenoElement('div');
+  assertEquals(element.tagName, 'DIV');
+});
+
+Deno.test('Query elements', () => {
+  // Set up test DOM
+  document.body.innerHTML = '<div class="test">Test</div>';
+  
+  const element = querySelector('.test');
+  assertExists(element);
+  assertEquals(element?.textContent, 'Test');
+});
+
+Deno.test('Component lifecycle', async () => {
+  const component = new Component();
+  const container = createDenoElement('div');
+  
+  await component.render(container);
+  assertExists(component.getElement());
+  
+  component.dispose();
+});
+```
+
+Run tests:
+
+```bash
+deno test --allow-net --allow-read
+```
+
+## Server-Side Rendering
+
+Use Deno with DOM APIs for SSR:
+
+```typescript
+import { DOMParser } from 'https://deno.land/x/deno_dom/deno-dom-wasm.ts';
+import { Component } from '@closure-next/deno';
+
+const document = new DOMParser().parseFromString(
+  '<!DOCTYPE html><html><body></body></html>',
+  'text/html'
+)!;
+
+class ServerComponent extends Component {
+  protected override createDom(): void {
+    super.createDom();
+    const element = this.getElement();
+    if (element) {
+      element.innerHTML = '<h1>Server-rendered content</h1>';
+    }
+  }
+}
+
+const component = new ServerComponent();
+const container = document.createElement('div');
+await component.render(container);
+
+const html = container.innerHTML;
+console.log(html);
+```
+
+## Deno Deploy Integration
+
+Deploy Closure Next apps to Deno Deploy:
+
+```typescript
+// main.ts
+import { serve } from 'https://deno.land/std/http/server.ts';
+import { Component } from '@closure-next/deno';
+
+class AppComponent extends Component {
+  protected override createDom(): void {
+    super.createDom();
+    const element = this.getElement();
+    if (element) {
+      element.innerHTML = '<h1>Hello from Deno Deploy!</h1>';
+    }
+  }
+}
+
+serve(async (req) => {
+  const component = new AppComponent();
+  const container = document.createElement('div');
+  await component.render(container);
+  
+  return new Response(
+    `<!DOCTYPE html>
+    <html>
+      <body>${container.innerHTML}</body>
+    </html>`,
+    {
+      headers: { 'content-type': 'text/html' }
+    }
+  );
+});
+```
+
+Deploy:
+
+```bash
+deployctl deploy --project=my-app main.ts
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Use import maps for clean imports">
+    Configure import maps in `deno.json` for cleaner code:
+
+    ```json
+    {
+      "imports": {
+        "@closure-next/": "npm:@closure-next/"
+      }
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Centralize dependencies in deps.ts">
+    Follow the Deno convention of centralizing dependencies:
+
+    ```typescript
+    // deps.ts
+    export * from 'npm:@closure-next/core';
+    export * from 'npm:@closure-next/deno';
+    ```
+  </Accordion>
+
+  <Accordion title="Enable strict type checking">
+    Use strict TypeScript settings:
+
+    ```json
+    {
+      "compilerOptions": {
+        "strict": true,
+        "noImplicitAny": true
+      }
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Minimize permissions">
+    Only request the permissions you need:
+
+    ```bash
+    # Good - minimal permissions
+    deno run --allow-net main.ts
+
+    # Avoid - too permissive
+    deno run --allow-all main.ts
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## API Reference
+
+### createDenoElement(tag: string)
+
+Creates a DOM element.
+
+**Parameters:**
+- `tag` - HTML tag name
+
+**Returns:** `HTMLElement`
+
+### querySelector(selector: string)
+
+Queries the document for a single element.
+
+**Parameters:**
+- `selector` - CSS selector
+
+**Returns:** `Element | null`
+
+### querySelectorAll(selector: string)
+
+Queries the document for all matching elements.
+
+**Parameters:**
+- `selector` - CSS selector
+
+**Returns:** `Element[]`
+
+### isDeno
+
+Boolean indicating whether code is running in Deno.
+
+**Type:** `boolean`
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Component Basics" icon="cube" href="/core/components">
+    Learn about Closure Next components
+  </Card>
+  <Card title="Node.js Support" icon="node-js" href="/platforms/nodejs">
+    Compare with Node.js runtime support
+  </Card>
+</CardGroup>

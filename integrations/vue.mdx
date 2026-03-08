@@ -1,0 +1,663 @@
+---
+title: 'Vue Integration'
+description: 'Use Closure Next components seamlessly in your Vue applications'
+icon: 'vuejs'
+---
+
+# Vue Integration
+
+The `@closure-next/vue` package provides plug-and-play integration between Closure Next components and Vue 3 applications. Use your Closure components with Vue's Composition API, full TypeScript support, and automatic lifecycle management.
+
+## Installation
+
+<CodeGroup>
+```bash npm
+npm install @closure-next/vue
+```
+
+```bash yarn
+yarn add @closure-next/vue
+```
+
+```bash pnpm
+pnpm add @closure-next/vue
+```
+</CodeGroup>
+
+## Quick Start
+
+### Basic Usage
+
+Use the `useClosureComponent` composable to integrate Closure components:
+
+```vue
+<script setup lang="ts">
+import { useClosureComponent } from '@closure-next/vue';
+import { Component, DOMHelper } from '@closure-next/core';
+
+class MyButton extends Component {
+  constructor(domHelper?: DOMHelper) {
+    super(domHelper || new DOMHelper(document));
+  }
+
+  createDom(): void {
+    const element = document.createElement('button');
+    element.textContent = 'Click me';
+    element.onclick = () => alert('Clicked!');
+    this.element = element;
+  }
+}
+
+const domHelper = new DOMHelper(document);
+const { ref, component } = useClosureComponent(MyButton, domHelper);
+</script>
+
+<template>
+  <div ref="ref"></div>
+</template>
+```
+
+### With Props
+
+```vue
+<script setup lang="ts">
+import { useClosureComponent } from '@closure-next/vue';
+import { Component, DOMHelper } from '@closure-next/core';
+import { ref } from 'vue';
+
+class Counter extends Component {
+  private count = 0;
+
+  setCount(count: number): void {
+    this.count = count;
+    if (this.element) {
+      this.element.textContent = `Count: ${this.count}`;
+    }
+  }
+
+  createDom(): void {
+    const element = document.createElement('div');
+    element.textContent = `Count: ${this.count}`;
+    this.element = element;
+  }
+}
+
+const count = ref(0);
+const domHelper = new DOMHelper(document);
+const { ref: componentRef, component } = useClosureComponent(
+  Counter,
+  domHelper,
+  { props: { count: count.value } }
+);
+</script>
+
+<template>
+  <div>
+    <div ref="componentRef"></div>
+    <button @click="count++">Increment</button>
+  </div>
+</template>
+```
+
+## API Reference
+
+### `useClosureComponent<T extends Component>`
+
+A Vue composable that creates and manages a Closure Next component instance.
+
+<ParamField path="ComponentClass" type="ComponentConstructor<T>" required>
+  The Closure Next component class to instantiate
+</ParamField>
+
+<ParamField path="domHelper" type="DOMHelper" required>
+  The DOMHelper instance for component initialization
+</ParamField>
+
+<ParamField path="options" type="ClosureComponentOptions<T>">
+  Configuration options for the component
+</ParamField>
+
+<ResponseField name="ref" type="Ref<HTMLElement | null>">
+  A Vue template ref for the mounting element
+</ResponseField>
+
+<ResponseField name="component" type="ShallowRef<T | null>">
+  A reactive reference to the Closure component instance
+</ResponseField>
+
+<ResponseField name="setProps" type="(props: Partial<ComponentState>) => Promise<void>">
+  Function to update component props dynamically
+</ResponseField>
+
+#### Options
+
+```typescript
+interface ClosureComponentOptions<T extends Component> {
+  props?: ComponentState;
+  onMounted?: (component: T) => void;
+  onUnmounted?: (component: T) => void;
+  onError?: (error: Error) => void;
+}
+```
+
+<ParamField path="props" type="ComponentState">
+  Initial props to pass to the component
+</ParamField>
+
+<ParamField path="onMounted" type="(component: T) => void">
+  Callback invoked when the component is mounted
+</ParamField>
+
+<ParamField path="onUnmounted" type="(component: T) => void">
+  Callback invoked when the component is unmounted
+</ParamField>
+
+<ParamField path="onError" type="(error: Error) => void">
+  Error handler for component initialization errors
+</ParamField>
+
+## Advanced Usage
+
+### Reactive Props with Watch
+
+React to Vue state changes and update your Closure component:
+
+```vue
+<script setup lang="ts">
+import { ref, watch } from 'vue';
+import { useClosureComponent } from '@closure-next/vue';
+import { Component, DOMHelper } from '@closure-next/core';
+
+class TextField extends Component {
+  private value = '';
+
+  setValue(value: string): void {
+    this.value = value;
+    if (this.element) {
+      (this.element as HTMLInputElement).value = value;
+    }
+  }
+
+  createDom(): void {
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = this.value;
+    this.element = input;
+  }
+}
+
+const props = defineProps<{
+  initialValue: string;
+}>();
+
+const value = ref(props.initialValue);
+const domHelper = new DOMHelper(document);
+const { ref: componentRef, component } = useClosureComponent(
+  TextField,
+  domHelper,
+  { props: { value: value.value } }
+);
+
+watch(value, (newValue) => {
+  if (component.value) {
+    component.value.setValue(newValue);
+  }
+});
+</script>
+
+<template>
+  <div>
+    <div ref="componentRef"></div>
+    <input v-model="value" placeholder="Update from Vue" />
+  </div>
+</template>
+```
+
+### Lifecycle Hooks
+
+Use lifecycle callbacks to respond to component events:
+
+```vue
+<script setup lang="ts">
+import { useClosureComponent } from '@closure-next/vue';
+import { Component, DOMHelper } from '@closure-next/core';
+
+class ManagedComponent extends Component {
+  createDom(): void {
+    const element = document.createElement('div');
+    element.textContent = 'Managed Component';
+    this.element = element;
+  }
+}
+
+const domHelper = new DOMHelper(document);
+const { ref, component } = useClosureComponent(
+  ManagedComponent,
+  domHelper,
+  {
+    onMounted: (comp) => {
+      console.log('Component mounted:', comp);
+    },
+    onUnmounted: (comp) => {
+      console.log('Component unmounted:', comp);
+    },
+    onError: (error) => {
+      console.error('Component error:', error);
+    }
+  }
+);
+</script>
+
+<template>
+  <div ref="ref"></div>
+</template>
+```
+
+### Dynamic Props Updates
+
+Use the `setProps` function for dynamic updates:
+
+```vue
+<script setup lang="ts">
+import { ref } from 'vue';
+import { useClosureComponent } from '@closure-next/vue';
+import { Component, DOMHelper } from '@closure-next/core';
+
+class DynamicComponent extends Component {
+  private title = '';
+  private subtitle = '';
+
+  setTitle(title: string): void {
+    this.title = title;
+    this.updateDisplay();
+  }
+
+  setSubtitle(subtitle: string): void {
+    this.subtitle = subtitle;
+    this.updateDisplay();
+  }
+
+  private updateDisplay(): void {
+    if (this.element) {
+      this.element.innerHTML = `
+        <h1>${this.title}</h1>
+        <h2>${this.subtitle}</h2>
+      `;
+    }
+  }
+
+  createDom(): void {
+    const element = document.createElement('div');
+    this.element = element;
+    this.updateDisplay();
+  }
+}
+
+const title = ref('Hello');
+const subtitle = ref('World');
+
+const domHelper = new DOMHelper(document);
+const { ref: componentRef, setProps } = useClosureComponent(
+  DynamicComponent,
+  domHelper,
+  {
+    props: {
+      title: title.value,
+      subtitle: subtitle.value
+    }
+  }
+);
+
+const updateProps = async () => {
+  await setProps({
+    title: title.value,
+    subtitle: subtitle.value
+  });
+};
+</script>
+
+<template>
+  <div>
+    <div ref="componentRef"></div>
+    <input v-model="title" @input="updateProps" />
+    <input v-model="subtitle" @input="updateProps" />
+  </div>
+</template>
+```
+
+### TypeScript Support
+
+Full type safety with Vue and Closure components:
+
+```vue
+<script setup lang="ts">
+import type { Component, ComponentState } from '@closure-next/core';
+import { useClosureComponent } from '@closure-next/vue';
+import { DOMHelper } from '@closure-next/core';
+
+interface ButtonState extends ComponentState {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+}
+
+class TypedButton extends Component {
+  private state: ButtonState = {
+    label: '',
+    onClick: () => {}
+  };
+
+  setLabel(label: string): void {
+    this.state.label = label;
+    this.updateButton();
+  }
+
+  setOnClick(onClick: () => void): void {
+    this.state.onClick = onClick;
+    this.updateButton();
+  }
+
+  setDisabled(disabled: boolean): void {
+    this.state.disabled = disabled;
+    this.updateButton();
+  }
+
+  private updateButton(): void {
+    if (this.element) {
+      const button = this.element as HTMLButtonElement;
+      button.textContent = this.state.label;
+      button.disabled = this.state.disabled || false;
+      button.onclick = this.state.onClick;
+    }
+  }
+
+  createDom(): void {
+    const button = document.createElement('button');
+    this.element = button;
+    this.updateButton();
+  }
+}
+
+const buttonState: ButtonState = {
+  label: 'Submit',
+  onClick: () => console.log('Submitted'),
+  disabled: false
+};
+
+const domHelper = new DOMHelper(document);
+const { ref, component } = useClosureComponent<TypedButton>(
+  TypedButton,
+  domHelper,
+  { props: buttonState }
+);
+</script>
+
+<template>
+  <div ref="ref"></div>
+</template>
+```
+
+## Server-Side Rendering
+
+The Vue integration supports server-side rendering:
+
+```typescript
+import { ServerComponent } from '@closure-next/vue';
+import { DOMHelper } from '@closure-next/core';
+
+class SSRComponent extends ServerComponent {
+  protected ssrEnabled = true;
+
+  createDom(): void {
+    const element = document.createElement('div');
+    element.textContent = 'Server-rendered content';
+    this.element = element;
+  }
+}
+
+// Server-side
+async function renderToString() {
+  const domHelper = new DOMHelper(document);
+  const component = new SSRComponent(domHelper);
+  const html = await component.renderToString();
+  return html;
+}
+
+// Client-side hydration
+const domHelper = new DOMHelper(document);
+const component = new SSRComponent(domHelper);
+await component.hydrate(container);
+```
+
+## Best Practices
+
+<Steps>
+  <Step title="Use Composition API">
+    The integration is designed for Vue 3's Composition API. Use `<script setup>` for the best experience.
+  </Step>
+
+  <Step title="Initialize DOMHelper once">
+    Create a single DOMHelper instance and reuse it across components to avoid unnecessary overhead.
+  </Step>
+
+  <Step title="Define setter methods">
+    Implement setter methods on your Closure components to handle prop updates from Vue.
+  </Step>
+
+  <Step title="Clean up resources">
+    Use the `onUnmounted` callback to clean up any resources when the component is destroyed.
+  </Step>
+</Steps>
+
+## Common Patterns
+
+### Form Integration
+
+```vue
+<script setup lang="ts">
+import { ref } from 'vue';
+import { useClosureComponent } from '@closure-next/vue';
+import { Component, DOMHelper } from '@closure-next/core';
+
+class FormField extends Component {
+  private value = '';
+  private onChange?: (value: string) => void;
+
+  setValue(value: string): void {
+    this.value = value;
+    if (this.element) {
+      (this.element as HTMLInputElement).value = value;
+    }
+  }
+
+  setOnChange(onChange: (value: string) => void): void {
+    this.onChange = onChange;
+  }
+
+  createDom(): void {
+    const input = document.createElement('input');
+    input.value = this.value;
+    input.oninput = (e) => {
+      this.onChange?.((e.target as HTMLInputElement).value);
+    };
+    this.element = input;
+  }
+}
+
+const formData = ref({
+  name: '',
+  email: ''
+});
+
+const domHelper = new DOMHelper(document);
+
+const { ref: nameRef } = useClosureComponent(
+  FormField,
+  domHelper,
+  {
+    props: {
+      value: formData.value.name,
+      onChange: (value: string) => {
+        formData.value.name = value;
+      }
+    }
+  }
+);
+
+const { ref: emailRef } = useClosureComponent(
+  FormField,
+  domHelper,
+  {
+    props: {
+      value: formData.value.email,
+      onChange: (value: string) => {
+        formData.value.email = value;
+      }
+    }
+  }
+);
+
+const handleSubmit = () => {
+  console.log('Submit:', formData.value);
+};
+</script>
+
+<template>
+  <form @submit.prevent="handleSubmit">
+    <div ref="nameRef"></div>
+    <div ref="emailRef"></div>
+    <button type="submit">Submit</button>
+  </form>
+</template>
+```
+
+### List Rendering
+
+```vue
+<script setup lang="ts">
+import { ref } from 'vue';
+import { useClosureComponent } from '@closure-next/vue';
+import { Component, DOMHelper } from '@closure-next/core';
+
+class ListItem extends Component {
+  private title = '';
+  private onClick?: () => void;
+
+  setTitle(title: string): void {
+    this.title = title;
+    if (this.element) {
+      this.element.textContent = title;
+    }
+  }
+
+  setOnClick(onClick: () => void): void {
+    this.onClick = onClick;
+  }
+
+  createDom(): void {
+    const div = document.createElement('div');
+    div.className = 'list-item';
+    div.textContent = this.title;
+    div.onclick = () => this.onClick?.();
+    this.element = div;
+  }
+}
+
+const items = ref([
+  { id: 1, title: 'Item 1' },
+  { id: 2, title: 'Item 2' },
+  { id: 3, title: 'Item 3' }
+]);
+
+const handleItemClick = (id: number) => {
+  console.log(`Item ${id} clicked`);
+};
+
+const domHelper = new DOMHelper(document);
+</script>
+
+<template>
+  <div>
+    <div
+      v-for="item in items"
+      :key="item.id"
+      :ref="(el) => {
+        const { ref } = useClosureComponent(
+          ListItem,
+          domHelper,
+          {
+            props: {
+              title: item.title,
+              onClick: () => handleItemClick(item.id)
+            }
+          }
+        );
+        return ref;
+      }"
+    ></div>
+  </div>
+</template>
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Component not rendering">
+    Ensure you're properly binding the template ref:
+
+    ```vue
+    <script setup>
+    const { ref: componentRef } = useClosureComponent(MyComponent, domHelper);
+    </script>
+
+    <template>
+      <!-- ✅ Correct -->
+      <div ref="componentRef"></div>
+
+      <!-- ❌ Incorrect -->
+      <div></div>
+    </template>
+    ```
+  </Accordion>
+
+  <Accordion title="Props not updating">
+    Use the `setProps` function or implement setter methods:
+
+    ```typescript
+    class MyComponent extends Component {
+      setTitle(title: string): void {
+        // Update logic
+      }
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Memory leaks">
+    Use the `onUnmounted` callback to clean up:
+
+    ```typescript
+    useClosureComponent(MyComponent, domHelper, {
+      onUnmounted: (component) => {
+        // Clean up resources
+      }
+    });
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Core Concepts" icon="book" href="/core/components">
+    Learn more about Closure Next components
+  </Card>
+  <Card title="TypeScript Guide" icon="code" href="/guides/typescript">
+    Deep dive into TypeScript integration
+  </Card>
+  <Card title="Testing" icon="flask" href="/advanced/testing">
+    Learn how to test Vue + Closure components
+  </Card>
+  <Card title="Examples" icon="stars" href="/quickstart">
+    Explore complete example applications
+  </Card>
+</CardGroup>

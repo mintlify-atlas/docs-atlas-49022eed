@@ -1,0 +1,451 @@
+---
+title: Next.js Integration
+description: Integrate Closure Next components with Next.js for server-side rendering
+icon: react
+---
+
+## Overview
+
+The `@closure-next/next` package provides seamless integration between Closure Next components and Next.js, enabling server-side rendering, progressive hydration, and React interoperability.
+
+## Installation
+
+```bash
+npm install @closure-next/next
+```
+
+**Peer dependencies:**
+- `@closure-next/core`: ^1.0.0
+- `next`: ^14.0.0
+- `react`: ^18.0.0
+
+## Quick Start
+
+<Steps>
+  <Step title="Create a Closure component">
+    ```typescript
+    // components/MyClosureComponent.ts
+    import { Component, DomHelper } from '@closure-next/core';
+
+    export class MyClosureComponent extends Component {
+      private title: string = '';
+
+      constructor() {
+        super(new DomHelper(document));
+      }
+
+      setTitle(title: string): void {
+        this.title = title;
+        if (this.getElement()) {
+          this.getElement()!.textContent = title;
+        }
+      }
+
+      protected createDom(): void {
+        const element = this.domHelper.createElement('div');
+        element.setAttribute('data-testid', 'closure-component');
+        element.textContent = this.title;
+        this.element = element;
+      }
+    }
+    ```
+  </Step>
+
+  <Step title="Use in Next.js page">
+    ```tsx
+    // pages/index.tsx
+    import { ClosureComponent } from '@closure-next/next';
+    import { MyClosureComponent } from '../components/MyClosureComponent';
+
+    export default function HomePage() {
+      return (
+        <div>
+          <h1>Next.js + Closure Next</h1>
+          <ClosureComponent
+            component={MyClosureComponent}
+            props={{ title: 'Server-rendered component' }}
+            ssr={true}
+          />
+        </div>
+      );
+    }
+    ```
+  </Step>
+
+  <Step title="Enable SSR with HOC">
+    ```tsx
+    // pages/ssr-page.tsx
+    import { withClosureNext } from '@closure-next/next';
+
+    function MyPage() {
+      return <div>SSR-enabled page</div>;
+    }
+
+    export default withClosureNext(MyPage, {
+      ssr: true,
+      hydration: 'progressive'
+    });
+    ```
+  </Step>
+</Steps>
+
+## API Reference
+
+### `withClosureNext(PageComponent, options?)`
+
+Higher-order component that wraps Next.js pages with Closure Next support.
+
+```typescript
+export function withClosureNext<P extends React.JSX.IntrinsicAttributes = {}>(
+  PageComponent: NextComponentType<NextPageContext, any, P>,
+  options: WithClosureNextOptions = {}
+): NextPage<P>
+```
+
+Source: `src/next/src/index.tsx:27-31`
+
+**Options:**
+
+- `ssr` (boolean): Enable server-side rendering (default: `true`)
+- `hydration` ('client-only' | 'server-first' | 'progressive'): Hydration strategy (default: `'progressive'`)
+
+**Example:**
+
+```tsx
+export default withClosureNext(HomePage, {
+  ssr: true,
+  hydration: 'progressive'
+});
+```
+
+### `ClosureComponent`
+
+React component for rendering Closure components with SSR support.
+
+```typescript
+function ClosureComponent<T extends Component>({
+  component: ComponentClass,
+  props,
+  ssr = true
+}: {
+  component: new () => T;
+  props?: Record<string, unknown>;
+  ssr?: boolean;
+}): JSX.Element
+```
+
+Source: `src/next/src/index.tsx:106-114`
+
+**Props:**
+
+- `component`: Closure component class
+- `props`: Props to pass to the component
+- `ssr`: Enable SSR for this instance (default: `true`)
+
+**Example:**
+
+```tsx
+<ClosureComponent
+  component={MyComponent}
+  props={{ title: 'Hello' }}
+  ssr={true}
+/>
+```
+
+### `renderToString(ComponentClass, props?)`
+
+Server-side renderer for Closure components.
+
+```typescript
+export function renderToString(
+  ComponentClass: new () => Component,
+  props?: Record<string, unknown>
+): string
+```
+
+Source: `src/next/src/index.tsx:54-57`
+
+**Example:**
+
+```typescript
+const html = renderToString(MyComponent, { title: 'SSR' });
+console.log(html); // '<div>SSR</div>'
+```
+
+**Implementation details:**
+
+1. Creates component instance
+2. Applies props
+3. Renders to temporary element
+4. Extracts HTML
+5. Disposes component
+
+Source: `src/next/src/index.tsx:58-78`
+
+### `hydrateComponent(ComponentClass, element, props?)`
+
+Client-side hydration utility.
+
+```typescript
+export function hydrateComponent<T extends Component>(
+  ComponentClass: new () => T,
+  element: HTMLElement,
+  props?: Record<string, unknown>
+): T
+```
+
+Source: `src/next/src/index.tsx:83-87`
+
+**Example:**
+
+```typescript
+const component = hydrateComponent(
+  MyComponent,
+  document.getElementById('root')!,
+  { title: 'Hydrated' }
+);
+```
+
+## Hydration Strategies
+
+### Client-Only Rendering
+
+Disable SSR, render only on the client:
+
+```tsx
+import { withClosureNext } from '@closure-next/next';
+
+export default withClosureNext(HomePage, {
+  ssr: false,
+  hydration: 'client-only'
+});
+```
+
+Implementation: `src/next/src/index.tsx:34-37`
+
+<Warning>
+  Client-only rendering returns `null` during SSR to prevent hydration mismatches.
+</Warning>
+
+### Server-First Hydration
+
+Fully render on server, then hydrate on client:
+
+```tsx
+export default withClosureNext(HomePage, {
+  ssr: true,
+  hydration: 'server-first'
+});
+```
+
+### Progressive Hydration
+
+Default strategy. Components hydrate incrementally:
+
+```tsx
+export default withClosureNext(HomePage, {
+  ssr: true,
+  hydration: 'progressive' // default
+});
+```
+
+## Configuration
+
+### Next.js Config
+
+Add Closure Next support to `next.config.js`:
+
+```javascript
+import path from 'path';
+
+export default {
+  webpack: (config) => {
+    // Add Closure Next support
+    config.resolve.alias['@closure-next'] = path.resolve(
+      __dirname,
+      'node_modules/@closure-next'
+    );
+    return config;
+  }
+};
+```
+
+### TypeScript Config
+
+Ensure proper TypeScript support:
+
+```json
+{
+  "compilerOptions": {
+    "jsx": "preserve",
+    "module": "esnext",
+    "moduleResolution": "node",
+    "lib": ["dom", "es2015"],
+    "types": ["@closure-next/next"]
+  }
+}
+```
+
+## Testing
+
+Test Next.js integration with Jest:
+
+```typescript
+import { renderToString } from '@closure-next/next';
+import { Component } from '@closure-next/core';
+
+describe('Next.js Integration', () => {
+  test('should render component to string', async () => {
+    const html = await renderToString(TestComponent);
+    expect(html).toContain('data-testid="test-component"');
+  });
+
+  test('should handle props during SSR', async () => {
+    const html = await renderToString(TestComponent, { 
+      title: 'SSR Title' 
+    });
+    expect(html).toContain('data-title="SSR Title"');
+    expect(html).toContain('SSR Title');
+  });
+});
+```
+
+See full test suite: `src/next/__tests__/integration.test.tsx:67-76`
+
+## Advanced Patterns
+
+### Custom getInitialProps
+
+```tsx
+import { withClosureNext } from '@closure-next/next';
+import type { NextPageContext } from 'next';
+
+function MyPage({ data }: { data: string }) {
+  return <div>{data}</div>;
+}
+
+MyPage.getInitialProps = async (ctx: NextPageContext) => {
+  return { data: 'Server data' };
+};
+
+export default withClosureNext(MyPage);
+```
+
+The HOC preserves `getInitialProps`: `src/next/src/index.tsx:44-46`
+
+### Dynamic Imports
+
+Lazy-load Closure components:
+
+```tsx
+import dynamic from 'next/dynamic';
+import { ClosureComponent } from '@closure-next/next';
+
+const HeavyComponent = dynamic(
+  () => import('../components/HeavyComponent'),
+  { ssr: false }
+);
+
+export default function Page() {
+  return <HeavyComponent />;
+}
+```
+
+### App Router Support
+
+Use with Next.js 13+ App Router:
+
+```tsx
+// app/page.tsx
+import { ClosureComponent } from '@closure-next/next';
+import { MyComponent } from '@/components/MyComponent';
+
+export default function Page() {
+  return (
+    <main>
+      <ClosureComponent
+        component={MyComponent}
+        props={{ title: 'App Router' }}
+      />
+    </main>
+  );
+}
+```
+
+## Performance Tips
+
+<Steps>
+  <Step title="Enable progressive hydration">
+    Use progressive hydration for non-critical components to improve Time to Interactive:
+    ```tsx
+    withClosureNext(Page, { hydration: 'progressive' })
+    ```
+  </Step>
+
+  <Step title="Disable SSR for heavy components">
+    Skip SSR for components with expensive initialization:
+    ```tsx
+    <ClosureComponent component={HeavyChart} ssr={false} />
+    ```
+  </Step>
+
+  <Step title="Minimize props size">
+    Keep props small to reduce HTML payload size during SSR.
+  </Step>
+
+  <Step title="Use React.memo for wrapper components">
+    Prevent unnecessary re-renders:
+    ```tsx
+    const MemoizedClosure = React.memo(ClosureComponent);
+    ```
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+### Hydration Mismatch
+
+**Error:** Text content does not match server-rendered HTML
+
+**Solution:** Ensure consistent rendering between server and client:
+
+```typescript
+// Bad - uses browser API during SSR
+createDom() {
+  this.element.textContent = window.location.href;
+}
+
+// Good - checks environment
+createDom() {
+  this.element.textContent = typeof window !== 'undefined'
+    ? window.location.href
+    : 'Server';
+}
+```
+
+### Component Not Hydrating
+
+**Error:** Component remains static after page load
+
+**Solution:** Ensure `useEffect` runs for hydration: `src/next/src/index.tsx:118-130`
+
+### Memory Leaks
+
+**Error:** Memory usage increases on navigation
+
+**Solution:** Always dispose components in cleanup:
+
+```tsx
+React.useEffect(() => {
+  const component = hydrateComponent(MyComponent, ref.current!);
+  return () => {
+    component.dispose(); // Critical!
+  };
+}, []);
+```
+
+## Related Resources
+
+- [Server-Side Rendering Overview](/advanced/ssr)
+- [Testing Utilities](/advanced/testing)
+- [Next.js Documentation](https://nextjs.org/docs)

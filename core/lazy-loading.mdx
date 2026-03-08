@@ -1,0 +1,425 @@
+---
+title: 'Lazy Loading'
+description: 'Deferred initialization with the Lazy utility class'
+---
+
+## Overview
+
+The `Lazy<T>` class provides a simple mechanism for lazy initialization of values. It defers the creation of expensive resources until they are first needed, then caches the result for subsequent access.
+
+## Class Definition
+
+```typescript
+import { Lazy } from '@closure/core';
+
+class Lazy<T> {
+  private value: T | undefined;
+  private factory: () => Promise<T>;
+}
+```
+
+## Constructor
+
+```typescript
+new Lazy<T>(factory: () => Promise<T>)
+```
+
+<ParamField path="factory" type="() => Promise<T>" required>
+  An async function that creates and returns the value when called
+</ParamField>
+
+### Example
+
+```typescript
+import { Lazy } from '@closure/core';
+
+const lazyData = new Lazy(async () => {
+  const response = await fetch('/api/data');
+  return response.json();
+});
+```
+
+## Methods
+
+### get()
+
+Retrieves the value, initializing it on first access.
+
+```typescript
+async get(): Promise<T>
+```
+
+**Returns:** Promise that resolves to the lazily-initialized value
+
+**Behavior:**
+- On first call: executes the factory function and caches the result
+- On subsequent calls: returns the cached value immediately
+- Factory function is only called once, even if `get()` is called multiple times
+
+### isLoaded()
+
+Checks if the value has been initialized.
+
+```typescript
+isLoaded(): boolean
+```
+
+**Returns:** `true` if the value has been loaded, `false` otherwise
+
+### reset()
+
+Clears the cached value, allowing it to be reinitialized on next access.
+
+```typescript
+reset(): void
+```
+
+After calling `reset()`, the next call to `get()` will execute the factory function again.
+
+## Basic Usage
+
+```typescript
+import { Lazy } from '@closure/core';
+
+// Create lazy instance
+const lazyConfig = new Lazy(async () => {
+  console.log('Loading config...');
+  return {
+    apiUrl: 'https://api.example.com',
+    timeout: 5000
+  };
+});
+
+// Check if loaded
+console.log(lazyConfig.isLoaded()); // false
+
+// First access - triggers factory
+const config1 = await lazyConfig.get();
+// Output: Loading config...
+console.log(config1); // { apiUrl: '...', timeout: 5000 }
+
+// Now it's loaded
+console.log(lazyConfig.isLoaded()); // true
+
+// Second access - uses cached value
+const config2 = await lazyConfig.get();
+// No output (factory not called)
+console.log(config2); // Same object as config1
+
+// Reset and reload
+lazyConfig.reset();
+console.log(lazyConfig.isLoaded()); // false
+const config3 = await lazyConfig.get();
+// Output: Loading config...
+```
+
+## Use Cases
+
+### Lazy Database Connection
+
+```typescript
+import { Lazy } from '@closure/core';
+import { Database } from './database';
+
+const lazyDb = new Lazy(async () => {
+  console.log('Connecting to database...');
+  const db = new Database();
+  await db.connect();
+  return db;
+});
+
+// Connection only happens when needed
+export async function getUser(id: string) {
+  const db = await lazyDb.get();
+  return db.users.findById(id);
+}
+
+export async function closeDb() {
+  if (lazyDb.isLoaded()) {
+    const db = await lazyDb.get();
+    await db.close();
+    lazyDb.reset();
+  }
+}
+```
+
+### Lazy Module Import
+
+```typescript
+import { Lazy } from '@closure/core';
+
+// Heavy module loaded only when needed
+const lazyParser = new Lazy(async () => {
+  const module = await import('heavy-parsing-library');
+  return new module.Parser();
+});
+
+export async function parseData(input: string) {
+  const parser = await lazyParser.get();
+  return parser.parse(input);
+}
+```
+
+### Lazy Component Loading
+
+```typescript
+import { Lazy } from '@closure/core';
+import { Component, DOMHelper } from '@closure/core';
+
+class LazyComponentLoader {
+  private lazyComponent: Lazy<Component>;
+
+  constructor(private domHelper: DOMHelper) {
+    this.lazyComponent = new Lazy(async () => {
+      // Dynamically import component
+      const { HeavyComponent } = await import('./heavy-component');
+      return new HeavyComponent(this.domHelper);
+    });
+  }
+
+  async render(container: HTMLElement): Promise<void> {
+    const component = await this.lazyComponent.get();
+    await component.render(container);
+  }
+
+  isReady(): boolean {
+    return this.lazyComponent.isLoaded();
+  }
+}
+```
+
+### Lazy API Client
+
+```typescript
+import { Lazy } from '@closure/core';
+
+interface ApiClient {
+  get(path: string): Promise<any>;
+  post(path: string, data: any): Promise<any>;
+}
+
+const lazyApi = new Lazy<ApiClient>(async () => {
+  // Load API configuration
+  const config = await fetch('/api/config').then(r => r.json());
+  
+  return {
+    async get(path: string) {
+      const response = await fetch(config.baseUrl + path, {
+        headers: { 'Authorization': `Bearer ${config.token}` }
+      });
+      return response.json();
+    },
+    async post(path: string, data: any) {
+      const response = await fetch(config.baseUrl + path, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${config.token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+      });
+      return response.json();
+    }
+  };
+});
+
+export async function fetchUsers() {
+  const api = await lazyApi.get();
+  return api.get('/users');
+}
+```
+
+## Advanced Patterns
+
+### Conditional Reset
+
+```typescript
+import { Lazy } from '@closure/core';
+
+class CachedDataLoader {
+  private lazyData: Lazy<any>;
+  private lastFetch: number = 0;
+  private ttl: number = 60000; // 1 minute
+
+  constructor() {
+    this.lazyData = new Lazy(async () => {
+      this.lastFetch = Date.now();
+      const response = await fetch('/api/data');
+      return response.json();
+    });
+  }
+
+  async getData(): Promise<any> {
+    // Reset if cache expired
+    if (this.lazyData.isLoaded() && Date.now() - this.lastFetch > this.ttl) {
+      this.lazyData.reset();
+    }
+    return this.lazyData.get();
+  }
+}
+```
+
+### Lazy Singleton
+
+```typescript
+import { Lazy } from '@closure/core';
+
+class ServiceManager {
+  private static instance = new Lazy<ServiceManager>(async () => {
+    const manager = new ServiceManager();
+    await manager.initialize();
+    return manager;
+  });
+
+  private constructor() {}
+
+  private async initialize(): Promise<void> {
+    // Expensive initialization
+    console.log('Initializing services...');
+  }
+
+  static async getInstance(): Promise<ServiceManager> {
+    return this.instance.get();
+  }
+
+  doSomething(): void {
+    console.log('Doing something...');
+  }
+}
+
+// Usage
+const manager = await ServiceManager.getInstance();
+manager.doSomething();
+```
+
+### Error Handling
+
+```typescript
+import { Lazy } from '@closure/core';
+
+const lazyResource = new Lazy(async () => {
+  const response = await fetch('/api/resource');
+  if (!response.ok) {
+    throw new Error(`Failed to load: ${response.statusText}`);
+  }
+  return response.json();
+});
+
+try {
+  const resource = await lazyResource.get();
+  console.log('Resource loaded:', resource);
+} catch (error) {
+  console.error('Failed to load resource:', error);
+  // Reset to allow retry
+  lazyResource.reset();
+}
+```
+
+## Comparison with Direct Initialization
+
+<Tabs>
+  <Tab title="Without Lazy">
+    ```typescript
+    // Eager initialization - runs immediately
+    class App {
+      private heavyService: HeavyService;
+
+      constructor() {
+        // This runs even if heavyService is never used
+        this.heavyService = new HeavyService();
+        this.heavyService.initialize();
+      }
+    }
+    ```
+  </Tab>
+  
+  <Tab title="With Lazy">
+    ```typescript
+    import { Lazy } from '@closure/core';
+
+    // Lazy initialization - deferred until needed
+    class App {
+      private heavyService = new Lazy(async () => {
+        const service = new HeavyService();
+        await service.initialize();
+        return service;
+      });
+
+      async useService() {
+        // Only initialized when this method is called
+        const service = await this.heavyService.get();
+        return service.doWork();
+      }
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Performance Benefits
+
+<CardGroup cols={2}>
+  <Card title="Faster Startup" icon="rocket">
+    Defer expensive initialization until actually needed
+  </Card>
+  
+  <Card title="Memory Efficiency" icon="memory">
+    Don't allocate resources that may never be used
+  </Card>
+  
+  <Card title="Caching" icon="database">
+    Automatically cache the initialized value for reuse
+  </Card>
+  
+  <Card title="On-Demand Loading" icon="download">
+    Load modules and resources only when required
+  </Card>
+</CardGroup>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Use for expensive operations">
+    Lazy is most beneficial for operations that are costly in time or memory:
+    - Network requests
+    - File I/O
+    - Complex calculations
+    - Large module imports
+  </Accordion>
+  
+  <Accordion title="Handle factory errors">
+    Always wrap `get()` calls in try-catch blocks if the factory function might fail:
+    ```typescript
+    try {
+      const value = await lazy.get();
+    } catch (error) {
+      // Handle initialization failure
+      lazy.reset(); // Allow retry
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Consider TTL for cached data">
+    If the lazy value represents external data that can change, implement a time-to-live pattern:
+    ```typescript
+    if (Date.now() - lastLoad > ttl) {
+      lazy.reset();
+    }
+    const data = await lazy.get();
+    ```
+  </Accordion>
+  
+  <Accordion title="Check isLoaded() before dispose">
+    Before cleaning up resources, check if they were ever initialized:
+    ```typescript
+    if (lazyDb.isLoaded()) {
+      const db = await lazyDb.get();
+      await db.close();
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Related
+
+- [Bundle Class](/core/bundles) - Lazy loading for module bundles
+- [Component Class](/core/components) - Can use Lazy for deferred component loading

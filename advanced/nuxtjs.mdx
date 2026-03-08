@@ -1,0 +1,567 @@
+---
+title: Nuxt.js Integration
+description: Integrate Closure Next components with Nuxt.js for Vue-powered SSR
+icon: vuejs
+---
+
+## Overview
+
+The `@closure-next/nuxt` package provides seamless integration between Closure Next components and Nuxt.js, enabling server-side rendering, progressive hydration, and Vue interoperability.
+
+## Installation
+
+```bash
+npm install @closure-next/nuxt
+```
+
+**Peer dependencies:**
+- `@closure-next/core`: ^1.0.0
+- `nuxt`: ^3.0.0
+- `@vue/runtime-core`: ^3.0.0
+
+## Quick Start
+
+<Steps>
+  <Step title="Register the plugin">
+    ```typescript
+    // nuxt.config.ts
+    export default defineNuxtConfig({
+      plugins: ['@closure-next/nuxt']
+    });
+    ```
+  </Step>
+
+  <Step title="Create a Closure component">
+    ```typescript
+    // components/MyClosureComponent.ts
+    import { Component } from '@closure-next/core';
+
+    export class MyClosureComponent extends Component {
+      private title: string = '';
+
+      setTitle(title: string): void {
+        this.title = title;
+        if (this.element) {
+          this.element.textContent = title;
+        }
+      }
+
+      protected createDom(): void {
+        const element = document.createElement('div');
+        element.setAttribute('data-component', 'closure');
+        element.textContent = this.title;
+        this.element = element;
+      }
+    }
+    ```
+  </Step>
+
+  <Step title="Use in Vue component">
+    ```vue
+    <template>
+      <div>
+        <h1>Nuxt.js + Closure Next</h1>
+        <closure-component
+          :component="MyClosureComponent"
+          :props="{ title: 'Server-rendered component' }"
+          :ssr="true"
+        />
+      </div>
+    </template>
+
+    <script setup>
+    import { MyClosureComponent } from '~/components/MyClosureComponent';
+    </script>
+    ```
+  </Step>
+</Steps>
+
+## API Reference
+
+### `closureNextPlugin`
+
+Nuxt.js plugin that provides Closure Next functionality.
+
+```typescript
+export const closureNextPlugin = (nuxtApp: NuxtApp) => {
+  nuxtApp.provide('closureNext', {
+    renderComponent,
+    hydrateComponent
+  });
+};
+```
+
+Source: `src/nuxt/src/index.ts:23-72`
+
+**Provides:**
+
+- `renderComponent(ComponentClass, props?)`: Server-side renderer
+- `hydrateComponent(ComponentClass, element, props?)`: Client-side hydration
+
+### `ClosureComponent`
+
+Vue component for rendering Closure components with SSR support.
+
+```typescript
+export const ClosureComponent = defineComponent({
+  name: 'ClosureComponent',
+  props: {
+    component: {
+      type: Function as PropType<new () => Component>,
+      required: true
+    },
+    props: {
+      type: Object as PropType<Record<string, unknown>>,
+      default: () => ({})
+    },
+    ssr: {
+      type: Boolean,
+      default: true
+    }
+  },
+  // ...
+});
+```
+
+Source: `src/nuxt/src/index.ts:77-93`
+
+**Props:**
+
+- `component`: Closure component class (required)
+- `props`: Props to pass to the component (default: `{}`)
+- `ssr`: Enable SSR for this instance (default: `true`)
+
+**Example:**
+
+```vue
+<closure-component
+  :component="MyComponent"
+  :props="{ title: 'Hello' }"
+  :ssr="true"
+/>
+```
+
+### `$closureNext`
+
+Injected plugin instance with utility methods.
+
+**Usage:**
+
+```typescript
+const { $closureNext } = useNuxtApp();
+
+// Server-side rendering
+const html = $closureNext.renderComponent(MyComponent, { 
+  title: 'SSR' 
+});
+
+// Client-side hydration
+const component = $closureNext.hydrateComponent(
+  MyComponent,
+  element,
+  { title: 'Hydrated' }
+);
+```
+
+## Component Lifecycle
+
+The `ClosureComponent` handles lifecycle automatically:
+
+```typescript
+setup(props) {
+  const instance = ref<Component | null>(null);
+
+  onMounted(() => {
+    const el = document.querySelector(`[data-closure-id="${props.component.name}"]`);
+    if (!el) return;
+
+    // Hydrate or render the component
+    instance.value = nuxtApp.$closureNext.hydrateComponent(
+      props.component,
+      el as HTMLElement,
+      props.props
+    );
+  });
+
+  onBeforeUnmount(() => {
+    if (instance.value) {
+      instance.value.dispose();
+      instance.value = null;
+    }
+  });
+}
+```
+
+Source: `src/nuxt/src/index.ts:130-147`
+
+## Server-Side Rendering
+
+### Render Function
+
+The component's render function handles SSR automatically:
+
+```typescript
+return () => {
+  // Handle server-side rendering
+  if (props.ssr && (process as any).server) {
+    const html = nuxtApp.$closureNext.renderComponent(
+      props.component,
+      props.props
+    );
+    return h('div', {
+      'data-closure-id': props.component.name,
+      innerHTML: html
+    });
+  }
+
+  return h('div', {
+    'data-closure-id': props.component.name
+  });
+};
+```
+
+Source: `src/nuxt/src/index.ts:149-165`
+
+### Custom Layouts
+
+Use Closure components in Nuxt layouts:
+
+```vue
+<!-- layouts/default.vue -->
+<template>
+  <div>
+    <closure-component
+      :component="HeaderComponent"
+      :props="{ title: 'My App' }"
+    />
+    <slot />
+    <closure-component
+      :component="FooterComponent"
+    />
+  </div>
+</template>
+
+<script setup>
+import { HeaderComponent, FooterComponent } from '~/components';
+</script>
+```
+
+### Error Pages
+
+```vue
+<!-- error.vue -->
+<template>
+  <closure-component
+    :component="ErrorComponent"
+    :props="{ error }"
+  />
+</template>
+
+<script setup>
+import { ErrorComponent } from '~/components/ErrorComponent';
+
+defineProps<{
+  error: { statusCode: number; message: string }
+}>()
+</script>
+```
+
+## Configuration
+
+### Nuxt Config
+
+Add advanced configuration:
+
+```typescript
+// nuxt.config.ts
+export default defineNuxtConfig({
+  plugins: [
+    {
+      src: '@closure-next/nuxt',
+      mode: 'all', // 'client', 'server', or 'all'
+    }
+  ],
+  
+  build: {
+    extend(config) {
+      // Add Closure Next support
+      config.resolve.alias['@closure-next'] = 
+        '~/node_modules/@closure-next';
+    }
+  },
+
+  vite: {
+    optimizeDeps: {
+      include: ['@closure-next/core', '@closure-next/nuxt']
+    }
+  }
+});
+```
+
+### TypeScript Support
+
+Add type declarations:
+
+```typescript
+// types/closure-next.d.ts
+import type { Component } from '@closure-next/core';
+
+declare module '#app' {
+  interface NuxtApp {
+    $closureNext: {
+      renderComponent: (
+        ComponentClass: new () => Component,
+        props?: Record<string, unknown>
+      ) => string;
+      hydrateComponent: <T extends Component>(
+        ComponentClass: new () => T,
+        element: HTMLElement,
+        props?: Record<string, unknown>
+      ) => T;
+    };
+  }
+}
+```
+
+## Hydration Strategies
+
+### Client-Only Rendering
+
+Disable SSR for specific components:
+
+```vue
+<closure-component
+  :component="MyComponent"
+  :ssr="false"
+/>
+```
+
+### Server-First Rendering
+
+Enable full SSR (default):
+
+```vue
+<closure-component
+  :component="MyComponent"
+  :ssr="true"
+/>
+```
+
+### Lazy Hydration
+
+Use `<ClientOnly>` for lazy hydration:
+
+```vue
+<template>
+  <ClientOnly>
+    <closure-component
+      :component="HeavyComponent"
+    />
+    <template #fallback>
+      <div>Loading...</div>
+    </template>
+  </ClientOnly>
+</template>
+```
+
+## Testing
+
+Test Nuxt integration:
+
+```typescript
+import { describe, test, expect } from '@jest/globals';
+import { Component } from '@closure-next/core';
+
+class TestComponent extends Component {
+  private title: string = '';
+  
+  setTitle(title: string): void {
+    this.title = title;
+    if (this.element) {
+      this.element.setAttribute('data-title', title);
+    }
+  }
+}
+
+describe('Nuxt Integration', () => {
+  test('should create component', () => {
+    const component = new TestComponent();
+    component.setTitle('Test Title');
+    component.render();
+    
+    const element = component.getElement();
+    expect(element).toBeTruthy();
+    expect(element?.getAttribute('data-title')).toBe('Test Title');
+  });
+});
+```
+
+See test example: `src/nuxt/__tests__/integration.test.ts:27-38`
+
+## Advanced Patterns
+
+### Composables
+
+Create a composable for Closure components:
+
+```typescript
+// composables/useClosureComponent.ts
+import { ref, onMounted, onBeforeUnmount } from 'vue';
+import type { Component } from '@closure-next/core';
+
+export function useClosureComponent<T extends Component>(
+  ComponentClass: new () => T,
+  props?: Record<string, unknown>
+) {
+  const instance = ref<T | null>(null);
+  const element = ref<HTMLElement | null>(null);
+
+  onMounted(() => {
+    if (!element.value) return;
+    
+    const { $closureNext } = useNuxtApp();
+    instance.value = $closureNext.hydrateComponent(
+      ComponentClass,
+      element.value,
+      props
+    );
+  });
+
+  onBeforeUnmount(() => {
+    if (instance.value) {
+      instance.value.dispose();
+      instance.value = null;
+    }
+  });
+
+  return { instance, element };
+}
+```
+
+**Usage:**
+
+```vue
+<template>
+  <div ref="element"></div>
+</template>
+
+<script setup>
+import { useClosureComponent } from '~/composables/useClosureComponent';
+import { MyComponent } from '~/components/MyComponent';
+
+const { instance, element } = useClosureComponent(MyComponent, {
+  title: 'Hello'
+});
+</script>
+```
+
+### Server Routes
+
+Render Closure components in server routes:
+
+```typescript
+// server/api/render.ts
+import { closureNextPlugin } from '@closure-next/nuxt';
+import { MyComponent } from '~/components/MyComponent';
+
+export default defineEventHandler((event) => {
+  const nuxtApp = { provide: (key: string, value: any) => {} };
+  closureNextPlugin(nuxtApp as any);
+  
+  const html = nuxtApp.$closureNext.renderComponent(MyComponent, {
+    title: 'API Rendered'
+  });
+  
+  return { html };
+});
+```
+
+## Performance Tips
+
+<Steps>
+  <Step title="Use client-only for heavy components">
+    Skip SSR for components with expensive initialization:
+    ```vue
+    <closure-component :component="Chart" :ssr="false" />
+    ```
+  </Step>
+
+  <Step title="Lazy load components">
+    Use `defineAsyncComponent` for code splitting:
+    ```typescript
+    const HeavyComponent = defineAsyncComponent(
+      () => import('~/components/HeavyComponent')
+    );
+    ```
+  </Step>
+
+  <Step title="Minimize props">
+    Keep props small to reduce HTML payload during SSR.
+  </Step>
+
+  <Step title="Use data-closure-id efficiently">
+    The component uses `data-closure-id` for hydration matching: `src/nuxt/src/index.ts:131`
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+### Component Not Hydrating
+
+**Problem:** Component remains static after page load
+
+**Solution:** Ensure the `data-closure-id` attribute matches:
+
+```typescript
+// Server render
+return h('div', {
+  'data-closure-id': props.component.name, // Must match!
+  innerHTML: html
+});
+
+// Client mount
+const el = document.querySelector(`[data-closure-id="${props.component.name}"]`);
+```
+
+Source: `src/nuxt/src/index.ts:131,157`
+
+### Props Not Updating
+
+**Problem:** Component props don't update reactively
+
+**Solution:** Use `watchEffect` to respond to prop changes:
+
+```typescript
+import { watchEffect } from 'vue';
+
+watchEffect(() => {
+  if (instance.value) {
+    Object.entries(props.props).forEach(([key, value]) => {
+      (instance.value as any)[key] = value;
+    });
+  }
+});
+```
+
+### Memory Leaks
+
+**Problem:** Memory increases on navigation
+
+**Solution:** Ensure cleanup in `onBeforeUnmount`:
+
+```typescript
+onBeforeUnmount(() => {
+  if (instance.value) {
+    instance.value.dispose(); // Critical!
+    instance.value = null;
+  }
+});
+```
+
+Source: `src/nuxt/src/index.ts:142-147`
+
+## Related Resources
+
+- [Server-Side Rendering Overview](/advanced/ssr)
+- [Testing Utilities](/advanced/testing)
+- [Nuxt.js Documentation](https://nuxt.com/docs)

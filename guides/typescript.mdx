@@ -1,0 +1,693 @@
+---
+title: "TypeScript Guide"
+description: "Leverage TypeScript's type system for safer and more maintainable Closure Next applications"
+---
+
+# TypeScript Usage Guide
+
+Closure Next is written entirely in TypeScript and provides comprehensive type definitions. This guide shows you how to leverage TypeScript for better developer experience and code quality.
+
+## Type Safety Benefits
+
+<CardGroup cols={2}>
+  <Card title="Compile-Time Errors" icon="shield">
+    Catch bugs before runtime with strict type checking
+  </Card>
+  <Card title="IntelliSense" icon="lightbulb">
+    Get autocomplete and inline documentation in your IDE
+  </Card>
+  <Card title="Refactoring" icon="arrows-rotate">
+    Safely refactor with confidence using type-aware tools
+  </Card>
+  <Card title="Documentation" icon="book">
+    Types serve as living documentation for your code
+  </Card>
+</CardGroup>
+
+## TypeScript Configuration
+
+### Recommended tsconfig.json
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2015",
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "lib": ["ES2015", "DOM", "DOM.Iterable"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "allowSyntheticDefaultImports": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "types": ["node"],
+    "resolveJsonModule": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}
+```
+
+<Tip>
+  Always enable `"strict": true` for maximum type safety. This catches common errors at compile time.
+</Tip>
+
+## Core Type Definitions
+
+### Component Types
+
+Closure Next exports comprehensive type definitions:
+
+```typescript
+import type { 
+  ComponentInterface,
+  ComponentState,
+  EventInterface,
+  EventTargetInterface,
+  BundleInterface
+} from '@closure-next/core';
+
+// Component interface definition from types.ts
+interface ComponentInterface extends EventTargetInterface {
+  getId(): string;
+  setId(id: string): void;
+  addChild(child: ComponentInterface): void;
+  removeChild(child: ComponentInterface): void;
+  getParent(): ComponentInterface | null;
+  getChildren(): ComponentInterface[];
+  getState(): ComponentState;
+  setState(state: ComponentState): Promise<void>;
+  render(container: HTMLElement): Promise<void>;
+  renderToString(): Promise<string>;
+  hydrate(): Promise<void>;
+}
+```
+
+### State Type
+
+Define custom state interfaces:
+
+```typescript
+import { Component, DOMHelper } from '@closure-next/core';
+import type { ComponentState } from '@closure-next/core';
+
+interface TodoState extends ComponentState {
+  todos: Array<{ id: string; text: string; completed: boolean }>;
+  filter: 'all' | 'active' | 'completed';
+}
+
+class TodoComponent extends Component {
+  constructor() {
+    super(new DOMHelper());
+  }
+
+  async initialize(): Promise<void> {
+    await this.setState<TodoState>({
+      todos: [],
+      filter: 'all'
+    });
+  }
+
+  async addTodo(text: string): Promise<void> {
+    const state = this.getState() as TodoState;
+    await this.setState({
+      todos: [...state.todos, { 
+        id: crypto.randomUUID(), 
+        text, 
+        completed: false 
+      }]
+    });
+  }
+}
+```
+
+## Generic Components
+
+### Type-Safe Component Props
+
+```typescript
+import { Component, DOMHelper } from '@closure-next/core';
+
+interface ListItemProps {
+  value: string;
+  index: number;
+  onClick?: (index: number) => void;
+}
+
+class ListItem<T extends ListItemProps> extends Component {
+  constructor(
+    private props: T
+  ) {
+    super(new DOMHelper());
+  }
+
+  protected async createDom(): Promise<void> {
+    this.element = this.domHelper.createElement('li');
+    this.element.textContent = this.props.value;
+    
+    if (this.props.onClick) {
+      this.element.addEventListener('click', () => {
+        this.props.onClick?.(this.props.index);
+      });
+    }
+  }
+}
+
+// Type-safe usage
+const item = new ListItem({
+  value: 'Item 1',
+  index: 0,
+  onClick: (idx) => console.log(`Clicked item ${idx}`)
+});
+```
+
+### Generic Collections
+
+```typescript
+import { Component, DOMHelper } from '@closure-next/core';
+
+class List<T> extends Component {
+  private items: T[] = [];
+  private renderItem: (item: T, index: number) => Component;
+
+  constructor(renderItem: (item: T, index: number) => Component) {
+    super(new DOMHelper());
+    this.renderItem = renderItem;
+  }
+
+  setItems(items: T[]): void {
+    this.items = items;
+    this.refresh();
+  }
+
+  private async refresh(): Promise<void> {
+    // Clear existing children
+    this.getChildren().forEach(child => {
+      this.removeChild(child);
+      child.dispose();
+    });
+
+    // Add new items
+    this.items.forEach((item, index) => {
+      const component = this.renderItem(item, index);
+      this.addChild(component);
+    });
+
+    // Re-render if already mounted
+    if (this.getElement()?.parentElement) {
+      await this.render(this.getElement()!.parentElement as HTMLElement);
+    }
+  }
+}
+
+// Usage with type inference
+interface User {
+  id: string;
+  name: string;
+}
+
+const userList = new List<User>((user, index) => {
+  return new ListItem({ value: user.name, index });
+});
+```
+
+## Event Type Safety
+
+### Typed Events
+
+```typescript
+import { EventTarget } from '@closure-next/core';
+import type { EventInterface } from '@closure-next/core';
+
+// Define custom event types
+const CustomEventType = {
+  USER_LOGIN: 'user:login',
+  USER_LOGOUT: 'user:logout',
+  DATA_LOADED: 'data:loaded'
+} as const;
+
+type CustomEventType = typeof CustomEventType[keyof typeof CustomEventType];
+
+// Typed event data
+interface UserLoginEvent extends EventInterface {
+  type: typeof CustomEventType.USER_LOGIN;
+  data: {
+    userId: string;
+    username: string;
+    timestamp: number;
+  };
+}
+
+interface DataLoadedEvent extends EventInterface {
+  type: typeof CustomEventType.DATA_LOADED;
+  data: {
+    records: number;
+    duration: number;
+  };
+}
+
+class TypedEventEmitter extends EventTarget {
+  emitLogin(userId: string, username: string): void {
+    this.emit(CustomEventType.USER_LOGIN, {
+      userId,
+      username,
+      timestamp: Date.now()
+    });
+  }
+
+  onLogin(handler: (event: UserLoginEvent) => void): void {
+    this.addEventListener(CustomEventType.USER_LOGIN, handler as any);
+  }
+}
+```
+
+### Type Guards
+
+```typescript
+import type { EventInterface } from '@closure-next/core';
+
+function isUserLoginEvent(event: EventInterface): event is UserLoginEvent {
+  return event.type === CustomEventType.USER_LOGIN && 
+         'userId' in event.data &&
+         'username' in event.data;
+}
+
+function handleEvent(event: EventInterface): void {
+  if (isUserLoginEvent(event)) {
+    // TypeScript knows event is UserLoginEvent here
+    console.log(`User ${event.data.username} logged in`);
+  }
+}
+```
+
+## Utility Types
+
+### String Utilities
+
+```typescript
+import type * as StringUtils from '@closure-next/core/utils/string';
+
+// All functions are fully typed
+const camelCase: string = StringUtils.toCamelCase('hello-world');
+const pascalCase: string = StringUtils.toPascalCase('hello world');
+const comparison: number = StringUtils.compareIgnoreCase('abc', 'ABC');
+const escaped: string = StringUtils.htmlEscape('<script>');
+const contains: boolean = StringUtils.containsIgnoreCase('Hello', 'HELLO');
+```
+
+### Array Utilities
+
+```typescript
+import { binarySearch, remove, insertAt } from '@closure-next/core/utils/array';
+
+// Generic with type inference
+const numbers = [1, 3, 5, 7, 9];
+const index: number = binarySearch(numbers, 5);
+
+// Custom comparator with types
+interface Product {
+  id: number;
+  name: string;
+  price: number;
+}
+
+const products: Product[] = [
+  { id: 1, name: 'Apple', price: 1.99 },
+  { id: 2, name: 'Banana', price: 0.99 },
+  { id: 3, name: 'Orange', price: 2.49 }
+];
+
+const foundIndex = binarySearch(
+  products,
+  { id: 2, name: 'Banana', price: 0.99 },
+  (a, b) => a.price - b.price
+);
+```
+
+## Advanced Patterns
+
+### Abstract Base Classes
+
+```typescript
+import { Component, DOMHelper } from '@closure-next/core';
+
+abstract class BaseWidget extends Component {
+  protected widgetTitle: string;
+
+  constructor(title: string) {
+    super(new DOMHelper());
+    this.widgetTitle = title;
+  }
+
+  protected abstract renderContent(): Promise<HTMLElement>;
+
+  protected async createDom(): Promise<void> {
+    const container = this.domHelper.createElement('div');
+    container.className = 'widget';
+
+    const header = this.domHelper.createElement('h3');
+    header.textContent = this.widgetTitle;
+    container.appendChild(header);
+
+    const content = await this.renderContent();
+    container.appendChild(content);
+
+    this.element = container;
+  }
+}
+
+// Concrete implementation
+class ChartWidget extends BaseWidget {
+  protected async renderContent(): Promise<HTMLElement> {
+    const canvas = this.domHelper.createElement('canvas');
+    // Render chart
+    return canvas;
+  }
+}
+```
+
+### Mixins with TypeScript
+
+```typescript
+import { Component, DOMHelper } from '@closure-next/core';
+
+// Mixin type
+type Constructor<T = {}> = new (...args: any[]) => T;
+
+// Draggable mixin
+function Draggable<TBase extends Constructor<Component>>(
+  Base: TBase
+) {
+  return class extends Base {
+    private isDragging = false;
+
+    makeDraggable(): void {
+      const element = this.getElement();
+      if (!element) return;
+
+      element.draggable = true;
+      element.addEventListener('dragstart', () => {
+        this.isDragging = true;
+      });
+      element.addEventListener('dragend', () => {
+        this.isDragging = false;
+      });
+    }
+
+    isDraggingNow(): boolean {
+      return this.isDragging;
+    }
+  };
+}
+
+// Usage
+class Panel extends Component {}
+const DraggablePanel = Draggable(Panel);
+
+const panel = new DraggablePanel(new DOMHelper());
+panel.makeDraggable();
+```
+
+### Discriminated Unions
+
+```typescript
+import type { ComponentState } from '@closure-next/core';
+
+type LoadingState = 
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'success'; data: any }
+  | { status: 'error'; error: Error };
+
+interface DataComponentState extends ComponentState {
+  loadingState: LoadingState;
+}
+
+class DataComponent extends Component {
+  async loadData(): Promise<void> {
+    await this.setState({ 
+      loadingState: { status: 'loading' } 
+    });
+
+    try {
+      const data = await fetch('/api/data').then(r => r.json());
+      await this.setState({ 
+        loadingState: { status: 'success', data } 
+      });
+    } catch (error) {
+      await this.setState({ 
+        loadingState: { status: 'error', error: error as Error } 
+      });
+    }
+  }
+
+  protected async createDom(): Promise<void> {
+    this.element = this.domHelper.createElement('div');
+    const state = this.getState() as DataComponentState;
+
+    // Type-safe discriminated union
+    switch (state.loadingState.status) {
+      case 'idle':
+        this.element.textContent = 'Click to load';
+        break;
+      case 'loading':
+        this.element.textContent = 'Loading...';
+        break;
+      case 'success':
+        // TypeScript knows data exists here
+        this.element.textContent = JSON.stringify(state.loadingState.data);
+        break;
+      case 'error':
+        // TypeScript knows error exists here
+        this.element.textContent = `Error: ${state.loadingState.error.message}`;
+        break;
+    }
+  }
+}
+```
+
+## Type Definitions for SSR
+
+### Server-Side Rendering Types
+
+```typescript
+import { Component, DOMHelper } from '@closure-next/core';
+import type { JSDOM } from 'jsdom';
+
+interface SSRContext {
+  jsdom: JSDOM;
+  domHelper: DOMHelper;
+  url: string;
+  userAgent?: string;
+}
+
+class SSRComponent extends Component {
+  constructor(private context: SSRContext) {
+    super(context.domHelper);
+  }
+
+  async renderToString(): Promise<string> {
+    // Server-side rendering logic
+    if (!this.element) {
+      await this.createDom();
+    }
+    return this.element?.outerHTML || '';
+  }
+
+  getContext(): SSRContext {
+    return this.context;
+  }
+}
+
+// Server usage
+import { JSDOM } from 'jsdom';
+
+const jsdom = new JSDOM('<!DOCTYPE html>');
+const context: SSRContext = {
+  jsdom,
+  domHelper: new DOMHelper(jsdom.window.document),
+  url: '/page',
+  userAgent: 'Mozilla/5.0'
+};
+
+const component = new SSRComponent(context);
+const html = await component.renderToString();
+```
+
+## Testing with Types
+
+### Type-Safe Test Utilities
+
+```typescript
+import { Component, DOMHelper } from '@closure-next/core';
+import type { ComponentInterface } from '@closure-next/core';
+import { JSDOM } from 'jsdom';
+
+// Test helper with proper types
+function createTestEnvironment(): {
+  document: Document;
+  domHelper: DOMHelper;
+  cleanup: () => void;
+} {
+  const jsdom = new JSDOM('<!DOCTYPE html><html><body></body></html>');
+  const document = jsdom.window.document;
+  const domHelper = new DOMHelper(document);
+
+  return {
+    document,
+    domHelper,
+    cleanup: () => {
+      jsdom.window.close();
+    }
+  };
+}
+
+// Usage in tests
+describe('MyComponent', () => {
+  let env: ReturnType<typeof createTestEnvironment>;
+  let component: ComponentInterface;
+
+  beforeEach(() => {
+    env = createTestEnvironment();
+    component = new MyComponent(env.domHelper);
+  });
+
+  afterEach(() => {
+    component.dispose();
+    env.cleanup();
+  });
+
+  test('renders correctly', async () => {
+    const container = env.domHelper.createElement('div');
+    await component.render(container);
+    expect(container.children.length).toBe(1);
+  });
+});
+```
+
+## Common TypeScript Errors
+
+<AccordionGroup>
+  <Accordion title="Error: Property 'element' is possibly null" icon="exclamation-triangle">
+    **Problem**: Accessing element before rendering
+    ```typescript
+    // BAD
+    this.element.textContent = 'Hello'; // Error!
+    ```
+
+    **Solution**: Use optional chaining or null checks
+    ```typescript
+    // GOOD
+    this.element?.textContent = 'Hello';
+    
+    // Or with null check
+    if (this.element) {
+      this.element.textContent = 'Hello';
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Error: Type 'ComponentState' is not assignable" icon="exclamation-triangle">
+    **Problem**: Using wrong state interface
+    ```typescript
+    // BAD
+    const state = this.getState();
+    console.log(state.customProp); // Error!
+    ```
+
+    **Solution**: Use type assertion or custom interface
+    ```typescript
+    // GOOD
+    interface MyState extends ComponentState {
+      customProp: string;
+    }
+    
+    const state = this.getState() as MyState;
+    console.log(state.customProp);
+    ```
+  </Accordion>
+
+  <Accordion title="Error: Cannot find module '@closure-next/core'" icon="exclamation-triangle">
+    **Problem**: Missing or incorrect types configuration
+    ```json
+    // BAD tsconfig.json
+    {
+      "compilerOptions": {
+        "moduleResolution": "classic" // Wrong!
+      }
+    }
+    ```
+
+    **Solution**: Use node module resolution
+    ```json
+    // GOOD tsconfig.json
+    {
+      "compilerOptions": {
+        "moduleResolution": "node",
+        "esModuleInterop": true
+      }
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Enable Strict Mode" icon="shield">
+    Always use `"strict": true` in tsconfig.json
+  </Card>
+  <Card title="Explicit Return Types" icon="arrow-right">
+    Define return types for public methods
+  </Card>
+  <Card title="Custom Interfaces" icon="code">
+    Extend ComponentState for type-safe state
+  </Card>
+  <Card title="Type Guards" icon="check">
+    Use type guards for runtime type checking
+  </Card>
+</CardGroup>
+
+## TypeScript Checklist
+
+<AccordionGroup>
+  <Accordion title="Project Setup" icon="gear">
+    - [ ] Enable `strict: true` in tsconfig.json
+    - [ ] Configure proper module resolution
+    - [ ] Set target to ES2015 or higher
+    - [ ] Enable source maps for debugging
+  </Accordion>
+
+  <Accordion title="Component Development" icon="cube">
+    - [ ] Define custom state interfaces
+    - [ ] Add explicit return types to methods
+    - [ ] Use optional chaining for nullable properties
+    - [ ] Implement proper type guards
+  </Accordion>
+
+  <Accordion title="Testing" icon="vial">
+    - [ ] Type test utilities properly
+    - [ ] Use type assertions carefully
+    - [ ] Test edge cases with TypeScript
+    - [ ] Verify type inference works
+  </Accordion>
+</AccordionGroup>
+
+## Additional Resources
+
+<CardGroup cols={2}>
+  <Card title="Migration Guide" icon="arrows-rotate" href="/guides/migration">
+    Migrate JavaScript code to TypeScript
+  </Card>
+  <Card title="API Reference" icon="book" href="/api/component">
+    Complete type definitions reference
+  </Card>
+  <Card title="TypeScript Handbook" icon="graduation-cap" href="https://www.typescriptlang.org/docs/handbook/intro.html">
+    Official TypeScript documentation
+  </Card>
+  <Card title="Performance Guide" icon="bolt" href="/guides/performance">
+    TypeScript performance optimization
+  </Card>
+</CardGroup>

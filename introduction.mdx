@@ -1,0 +1,95 @@
+---
+title: "Introduction"
+description: "Modern TypeScript rewrite of Google Closure Library with framework integrations and build tool support"
+---
+
+# Welcome to Closure Next
+
+**Closure Next** is a modern and optimized reimagining of the iconic [Google Closure Library](https://github.com/google/closure-library), rewritten from the ground up in **TypeScript** for the modern JavaScript ecosystem.
+
+Built for performance, modularity, and developer experience, Closure Next brings the battle-tested patterns of Closure Library to React, Vue, Angular, Svelte, and beyond — with first-class support for modern build tools like Webpack, Vite, and Rollup.
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="TypeScript-First" icon="code">
+    Fully written in TypeScript with complete type safety, IntelliSense support, and modern IDE integration
+  </Card>
+  <Card title="Framework Ready" icon="layer-group">
+    Official integrations for React, Vue, Angular, and Svelte with idiomatic APIs for each framework
+  </Card>
+  <Card title="Build Tool Plugins" icon="wrench">
+    Native plugins for Webpack, Vite, and Rollup with automatic optimization and tree-shaking
+  </Card>
+  <Card title="Cross-Platform" icon="globe">
+    Works seamlessly in browsers, Node.js, Deno, and mobile environments
+  </Card>
+  <Card title="Server-Side Rendering" icon="server">
+    First-class SSR support with Next.js and Nuxt.js integrations for hybrid rendering
+  </Card>
+  <Card title="WebAssembly Ready" icon="bolt">
+    Optional WebAssembly optimizations for performance-critical operations
+  </Card>
+  <Card title="Modern Testing" icon="vial">
+    Comprehensive testing utilities with Jest and Cypress support built-in
+  </Card>
+  <Card title="Component Architecture" icon="cubes">
+    Modern component-based architecture with lifecycle management and event handling
+  </Card>
+</CardGroup>
+
+## Why Closure Next?
+
+The original Google Closure Library powered some of the web's largest applications, including Gmail and Google Docs. Closure Next brings those proven architectural patterns into the modern era:
+
+- **Type Safety**: Full TypeScript support means catching bugs at compile time, not runtime
+- **Modern APIs**: Clean, intuitive APIs designed for 2020s JavaScript development
+- **Zero Legacy**: No compromises for backwards compatibility — built fresh for modern platforms
+- **Modular Design**: Import only what you need for optimal bundle sizes
+- **Active Development**: Regular updates, modern dependencies, and an engaged community
+
+## Quick Example
+
+```typescript
+import { Component, DOMHelper } from '@closure-next/core';
+
+class HelloWorld extends Component {
+  constructor() {
+    super(new DOMHelper());
+  }
+
+  protected async createDom(): Promise<void> {
+    this.element = this.domHelper.createElement('div');
+    this.element.textContent = 'Hello, Closure Next!';
+  }
+}
+
+const component = new HelloWorld();
+await component.render(document.body);
+```
+
+## Get Started
+
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/installation">
+    Install Closure Next via npm, yarn, or pnpm
+  </Card>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Build your first component in under 5 minutes
+  </Card>
+  <Card title="API Reference" icon="book" href="/api/component">
+    Explore the complete API documentation
+  </Card>
+  <Card title="Framework Integrations" icon="plug" href="/integrations/react">
+    Integrate with React, Vue, Angular, or Svelte
+  </Card>
+</CardGroup>
+
+## Community & Support
+
+Closure Next is open source under the Apache 2.0 license, the same license as the original Closure Library.
+
+- **GitHub**: [MilesONerd/closure-next](https://github.com/MilesONerd/closure-next)
+- **Twitter/X**: [@closure_next](https://x.com/closure_next)
+- **Issues**: [Report bugs or request features](https://github.com/MilesONerd/closure-next/issues)
+- **Contributing**: [Read our contribution guide](https://github.com/MilesONerd/closure-next/blob/master/CONTRIBUTING.md)

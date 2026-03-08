@@ -1,0 +1,777 @@
+---
+title: Testing Utilities
+description: Test Closure Next components with Jest matchers and Cypress commands
+icon: flask
+---
+
+## Overview
+
+The `@closure-next/testing` package provides comprehensive testing utilities for Closure Next components, including custom Jest matchers, component mounting helpers, event simulation, and Cypress commands.
+
+## Installation
+
+```bash
+npm install @closure-next/testing
+```
+
+**Peer dependencies:**
+- `@closure-next/core`: ^1.0.0
+- `jest`: ^29.0.0 (for Jest utilities)
+- `cypress`: ^12.0.0 (for Cypress commands)
+
+## Jest Testing
+
+### Setup
+
+<Steps>
+  <Step title="Import utilities">
+    ```typescript
+    import { 
+      createMockComponent,
+      mountComponent,
+      simulateEvent,
+      waitForUpdate 
+    } from '@closure-next/testing/jest';
+    ```
+  </Step>
+
+  <Step title="Configure Jest">
+    ```javascript
+    // jest.setup.js
+    import '@closure-next/testing/jest';
+    ```
+  </Step>
+
+  <Step title="Write tests">
+    ```typescript
+    import { MyComponent } from './MyComponent';
+
+    describe('MyComponent', () => {
+      it('should render correctly', () => {
+        const { component } = mountComponent(MyComponent);
+        expect(component).toBeRendered();
+      });
+    });
+    ```
+  </Step>
+</Steps>
+
+### API Reference
+
+#### `createMockComponent<T>(ComponentClass, props?)`
+
+Creates a mock component instance with optional props.
+
+```typescript
+export function createMockComponent<T extends Component>(
+  ComponentClass: new () => T,
+  props?: Record<string, unknown>
+): T
+```
+
+**Parameters:**
+- `ComponentClass`: Component class to instantiate
+- `props`: Optional properties to set on the component
+
+**Returns:** Component instance
+
+**Example:**
+
+```typescript
+import { createMockComponent } from '@closure-next/testing/jest';
+
+const component = createMockComponent(MyComponent, {
+  title: 'Test Title',
+  count: 42
+});
+
+expect(component.getTitle()).toBe('Test Title');
+```
+
+**Implementation:**
+
+```typescript
+export function createMockComponent<T extends Component>(
+  ComponentClass: new () => T,
+  props?: Record<string, unknown>
+): T {
+  const component = new ComponentClass();
+  if (props) {
+    Object.entries(props).forEach(([key, value]) => {
+      (component as any)[key] = value;
+    });
+  }
+  return component;
+}
+```
+
+Source: `src/testing/jest/index.ts:45-56`
+
+#### `mountComponent<T>(ComponentClass, props?)`
+
+Mounts a component in a test container attached to the DOM.
+
+```typescript
+export function mountComponent<T extends Component>(
+  ComponentClass: new () => T,
+  props?: Record<string, unknown>
+): { component: T; container: HTMLElement }
+```
+
+**Parameters:**
+- `ComponentClass`: Component class to mount
+- `props`: Optional properties to set on the component
+
+**Returns:** Object with component instance and container element
+
+**Example:**
+
+```typescript
+import { mountComponent } from '@closure-next/testing/jest';
+
+describe('MyComponent', () => {
+  it('should be rendered in DOM', () => {
+    const { component, container } = mountComponent(MyComponent, {
+      title: 'Test'
+    });
+
+    expect(container.isConnected).toBe(true);
+    expect(component.getElement()).toBeTruthy();
+    expect(component).toBeRendered();
+  });
+});
+```
+
+**Implementation:**
+
+```typescript
+export function mountComponent<T extends Component>(
+  ComponentClass: new () => T,
+  props?: Record<string, unknown>
+): { component: T; container: HTMLElement } {
+  const container = document.createElement('div');
+  document.body.appendChild(container);
+
+  const component = createMockComponent(ComponentClass, props);
+  component.enterDocument();
+  const element = component.getElement();
+  if (element) {
+    container.appendChild(element);
+  }
+
+  return { component, container };
+}
+```
+
+Source: `src/testing/jest/index.ts:58-73`
+
+<Warning>
+  Remember to clean up the container after each test:
+  ```typescript
+  afterEach(() => {
+    document.body.innerHTML = '';
+  });
+  ```
+</Warning>
+
+#### `simulateEvent(component, eventType, eventInit?)`
+
+Simulates events on component elements.
+
+```typescript
+export function simulateEvent(
+  component: Component,
+  eventType: string,
+  eventInit?: EventInit
+): void
+```
+
+**Parameters:**
+- `component`: Component instance
+- `eventType`: Event type (e.g., 'click', 'input')
+- `eventInit`: Optional event initialization options
+
+**Example:**
+
+```typescript
+import { mountComponent, simulateEvent } from '@closure-next/testing/jest';
+
+test('should handle click events', () => {
+  const { component } = mountComponent(ButtonComponent);
+  const handler = jest.fn();
+  
+  component.getElement()?.addEventListener('click', handler);
+  simulateEvent(component, 'click');
+  
+  expect(handler).toHaveBeenCalled();
+});
+
+test('should handle custom events', () => {
+  const { component } = mountComponent(MyComponent);
+  
+  simulateEvent(component, 'custom', {
+    bubbles: true,
+    cancelable: true
+  });
+});
+```
+
+**Implementation:**
+
+```typescript
+export function simulateEvent(
+  component: Component,
+  eventType: string,
+  eventInit?: EventInit
+): void {
+  const element = component.getElement();
+  if (!element) {
+    throw new Error('Component not rendered');
+  }
+
+  const event = new Event(eventType, eventInit);
+  element.dispatchEvent(event);
+}
+```
+
+Source: `src/testing/jest/index.ts:75-87`
+
+#### `waitForUpdate()`
+
+Waits for the next event loop tick, useful for async component updates.
+
+```typescript
+export async function waitForUpdate(): Promise<void>
+```
+
+**Returns:** Promise that resolves after the next tick
+
+**Example:**
+
+```typescript
+import { mountComponent, waitForUpdate } from '@closure-next/testing/jest';
+
+test('should update asynchronously', async () => {
+  const { component } = mountComponent(AsyncComponent);
+  
+  component.loadData();
+  await waitForUpdate();
+  
+  expect(component.getData()).toBeDefined();
+});
+```
+
+**Implementation:**
+
+```typescript
+export async function waitForUpdate(): Promise<void> {
+  await new Promise(resolve => setTimeout(resolve, 0));
+}
+```
+
+Source: `src/testing/jest/index.ts:89-91`
+
+### Custom Jest Matchers
+
+The package extends Jest with custom matchers for Closure components.
+
+#### `toBeRendered()`
+
+Checks if a component is rendered in the DOM.
+
+```typescript
+expect(component).toBeRendered();
+```
+
+**Example:**
+
+```typescript
+test('component should be rendered', () => {
+  const { component } = mountComponent(MyComponent);
+  expect(component).toBeRendered();
+  
+  component.dispose();
+  expect(component).not.toBeRendered();
+});
+```
+
+**Implementation:**
+
+```typescript
+toBeRendered(received: Component) {
+  const element = received.getElement();
+  const pass = Boolean(element && element.isConnected);
+  return {
+    pass,
+    message: () =>
+      `expected component ${pass ? 'not ' : ''}to be rendered in the DOM`
+  };
+}
+```
+
+Source: `src/testing/jest/index.ts:15-22`
+
+#### `toHaveState(state)`
+
+Checks if a component has a specific state.
+
+```typescript
+expect(component).toHaveState(ComponentState.ACTIVE);
+```
+
+**Example:**
+
+```typescript
+import { ComponentState } from '@closure-next/core';
+
+test('component should have active state', () => {
+  const { component } = mountComponent(StatefulComponent);
+  component.activate();
+  
+  expect(component).toHaveState(ComponentState.ACTIVE);
+});
+```
+
+**Implementation:**
+
+```typescript
+toHaveState(received: Component, state: number) {
+  const pass = (received as any).getState() === state;
+  return {
+    pass,
+    message: () =>
+      `expected component ${pass ? 'not ' : ''}to have state ${state}`
+  };
+}
+```
+
+Source: `src/testing/jest/index.ts:25-32`
+
+#### `toHaveChildren(count)`
+
+Checks if a component has a specific number of children.
+
+```typescript
+expect(component).toHaveChildren(3);
+```
+
+**Example:**
+
+```typescript
+test('component should have children', () => {
+  const { component } = mountComponent(ParentComponent);
+  
+  expect(component).toHaveChildren(0);
+  
+  component.addChild(new ChildComponent());
+  component.addChild(new ChildComponent());
+  
+  expect(component).toHaveChildren(2);
+});
+```
+
+**Implementation:**
+
+```typescript
+toHaveChildren(received: Component, count: number) {
+  const children = (received as any).children;
+  const pass = children.length === count;
+  return {
+    pass,
+    message: () =>
+      `expected component to have ${count} children but found ${children.length}`
+  };
+}
+```
+
+Source: `src/testing/jest/index.ts:34-42`
+
+### Complete Jest Example
+
+```typescript
+import { Component } from '@closure-next/core';
+import { 
+  createMockComponent,
+  mountComponent,
+  simulateEvent,
+  waitForUpdate 
+} from '@closure-next/testing/jest';
+
+class TestComponent extends Component {
+  private title: string = 'Test Component';
+
+  setTitle(title: string): void {
+    this.title = title;
+    if (this.element) {
+      this.element.setAttribute('data-title', title);
+    }
+  }
+
+  getTitle(): string {
+    return this.title;
+  }
+}
+
+describe('Jest Utilities', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  test('creates component instance', () => {
+    const component = createMockComponent(TestComponent);
+    expect(component).toBeInstanceOf(TestComponent);
+  });
+
+  test('mounts component to DOM', () => {
+    const { component, container } = mountComponent(TestComponent);
+    expect(container.isConnected).toBe(true);
+    expect(component.getElement()).toBeTruthy();
+    expect(component).toBeRendered();
+  });
+
+  test('dispatches event on component', () => {
+    const { component } = mountComponent(TestComponent);
+    const handler = jest.fn();
+    component.getElement()?.addEventListener('click', handler);
+    simulateEvent(component, 'click');
+    expect(handler).toHaveBeenCalled();
+  });
+
+  test('waits for next tick', async () => {
+    const { component } = mountComponent(TestComponent);
+    let updated = false;
+    setTimeout(() => { updated = true; }, 0);
+    await waitForUpdate();
+    expect(updated).toBe(true);
+  });
+});
+```
+
+Source: `src/testing/__tests__/jest.test.ts:33-73`
+
+## Cypress Testing
+
+### Setup
+
+<Steps>
+  <Step title="Import commands">
+    ```typescript
+    // cypress/support/commands.ts
+    import '@closure-next/testing/cypress';
+    ```
+  </Step>
+
+  <Step title="Add TypeScript types">
+    ```typescript
+    // cypress/support/index.d.ts
+    import '@closure-next/testing/cypress';
+    ```
+  </Step>
+
+  <Step title="Write tests">
+    ```typescript
+    // cypress/e2e/component.cy.ts
+    import { MyComponent } from '../../src/MyComponent';
+
+    describe('MyComponent', () => {
+      it('should render and interact', () => {
+        cy.mountClosureComponent(MyComponent)
+          .getClosureElement()
+          .should('be.visible');
+      });
+    });
+    ```
+  </Step>
+</Steps>
+
+### Cypress Commands
+
+#### `mountClosureComponent(ComponentClass, props?)`
+
+Mounts a Closure component in the Cypress test runner.
+
+```typescript
+cy.mountClosureComponent(MyComponent, { title: 'Test' })
+```
+
+**Parameters:**
+- `ComponentClass`: Component class to mount
+- `props`: Optional properties to set
+
+**Returns:** Cypress chainable with component instance
+
+**Example:**
+
+```typescript
+import { MyComponent } from './MyComponent';
+
+describe('Component Mounting', () => {
+  it('should mount component', () => {
+    cy.mountClosureComponent(MyComponent, {
+      title: 'Cypress Test'
+    })
+      .should('exist');
+  });
+});
+```
+
+**Implementation:**
+
+```typescript
+Cypress.Commands.add(
+  'mountClosureComponent',
+  <T extends Component>(ComponentClass: new () => T, props?: Record<string, unknown>) => {
+    return cy.window().then((win) => {
+      const component = new ComponentClass();
+      if (props) {
+        Object.entries(props).forEach(([key, value]) => {
+          (component as any)[key] = value;
+        });
+      }
+
+      component.enterDocument();
+      const element = component.getElement();
+      if (element) {
+        win.document.body.appendChild(element);
+      }
+
+      return cy.wrap(component);
+    });
+  }
+);
+```
+
+Source: `src/testing/cypress/index.ts:25-44`
+
+#### `getClosureElement()`
+
+Gets the DOM element from a mounted component.
+
+```typescript
+cy.mountClosureComponent(MyComponent)
+  .getClosureElement()
+  .should('be.visible')
+```
+
+**Returns:** Cypress chainable with element
+
+**Example:**
+
+```typescript
+it('should get element from component', () => {
+  cy.mountClosureComponent(MyComponent)
+    .getClosureElement()
+    .should('have.attr', 'data-testid', 'my-component')
+    .and('be.visible');
+});
+```
+
+**Implementation:**
+
+```typescript
+Cypress.Commands.add(
+  'getClosureElement',
+  { prevSubject: true },
+  (subject: Component) => {
+    const element = subject.getElement();
+    if (!element) {
+      throw new Error('Component not rendered');
+    }
+    return cy.wrap(element);
+  }
+);
+```
+
+Source: `src/testing/cypress/index.ts:47-56`
+
+#### `triggerClosureEvent(eventType, eventInit?)`
+
+Triggers an event on a component's element.
+
+```typescript
+cy.mountClosureComponent(MyComponent)
+  .triggerClosureEvent('click')
+```
+
+**Parameters:**
+- `eventType`: Event type to trigger
+- `eventInit`: Optional event initialization options
+
+**Returns:** Cypress chainable with element
+
+**Example:**
+
+```typescript
+it('should trigger events', () => {
+  cy.mountClosureComponent(ButtonComponent)
+    .triggerClosureEvent('click')
+    .getClosureElement()
+    .should('have.class', 'clicked');
+
+  cy.mountClosureComponent(InputComponent)
+    .triggerClosureEvent('input', { bubbles: true });
+});
+```
+
+**Implementation:**
+
+```typescript
+Cypress.Commands.add(
+  'triggerClosureEvent',
+  { prevSubject: true },
+  (subject: Component, eventType: string, eventInit?: EventInit) => {
+    const element = subject.getElement();
+    if (!element) {
+      throw new Error('Component not rendered');
+    }
+
+    const event = new Event(eventType, eventInit);
+    element.dispatchEvent(event);
+
+    return cy.wrap(element);
+  }
+);
+```
+
+Source: `src/testing/cypress/index.ts:59-72`
+
+#### `shouldHaveState(state)`
+
+Asserts that a component has a specific state.
+
+```typescript
+cy.mountClosureComponent(MyComponent)
+  .shouldHaveState(ComponentState.ACTIVE)
+```
+
+**Parameters:**
+- `state`: Expected state value
+
+**Returns:** Cypress chainable
+
+**Example:**
+
+```typescript
+import { ComponentState } from '@closure-next/core';
+
+it('should verify component state', () => {
+  cy.mountClosureComponent(StatefulComponent)
+    .shouldHaveState(ComponentState.IDLE);
+
+  cy.mountClosureComponent(StatefulComponent)
+    .triggerClosureEvent('click')
+    .shouldHaveState(ComponentState.ACTIVE);
+});
+```
+
+**Implementation:**
+
+```typescript
+Cypress.Commands.add(
+  'shouldHaveState',
+  { prevSubject: true },
+  (subject: Component, state: number) => {
+    return cy.wrap(subject).then((component: Component) => {
+      const actualState = (component as any).getState();
+      cy.wrap(actualState).should('equal', state);
+    });
+  }
+);
+```
+
+Source: `src/testing/cypress/index.ts:75-84`
+
+### Complete Cypress Example
+
+```typescript
+import { Component } from '@closure-next/core';
+import { ComponentState } from '@closure-next/core';
+
+class TestComponent extends Component {
+  private state = ComponentState.IDLE;
+
+  getState(): number {
+    return this.state;
+  }
+
+  activate(): void {
+    this.state = ComponentState.ACTIVE;
+    this.getElement()?.classList.add('active');
+  }
+}
+
+describe('Component Integration', () => {
+  it('should mount and interact with component', () => {
+    cy.mountClosureComponent(TestComponent)
+      .getClosureElement()
+      .should('be.visible')
+      .and('not.have.class', 'active');
+  });
+
+  it('should handle events', () => {
+    cy.mountClosureComponent(TestComponent)
+      .triggerClosureEvent('click')
+      .getClosureElement()
+      .should('have.class', 'clicked');
+  });
+
+  it('should verify component state', () => {
+    cy.mountClosureComponent(TestComponent)
+      .shouldHaveState(ComponentState.IDLE)
+      .then((component: TestComponent) => {
+        component.activate();
+      })
+      .shouldHaveState(ComponentState.ACTIVE)
+      .getClosureElement()
+      .should('have.class', 'active');
+  });
+});
+```
+
+## Best Practices
+
+<Steps>
+  <Step title="Clean up after tests">
+    Always clean up DOM after each test:
+    ```typescript
+    afterEach(() => {
+      document.body.innerHTML = '';
+    });
+    ```
+  </Step>
+
+  <Step title="Use appropriate matchers">
+    Use custom matchers for better error messages:
+    ```typescript
+    // Good
+    expect(component).toBeRendered();
+    
+    // Less clear
+    expect(component.getElement()?.isConnected).toBe(true);
+    ```
+  </Step>
+
+  <Step title="Wait for async updates">
+    Use `waitForUpdate()` for async operations:
+    ```typescript
+    component.loadData();
+    await waitForUpdate();
+    expect(component.getData()).toBeDefined();
+    ```
+  </Step>
+
+  <Step title="Dispose components properly">
+    Always dispose components to prevent memory leaks:
+    ```typescript
+    afterEach(() => {
+      component.dispose();
+    });
+    ```
+  </Step>
+</Steps>
+
+## Related Resources
+
+- [Jest Documentation](https://jestjs.io/)
+- [Cypress Documentation](https://docs.cypress.io/)
+- [Testing Best Practices](https://kentcdodds.com/blog/common-mistakes-with-react-testing-library)

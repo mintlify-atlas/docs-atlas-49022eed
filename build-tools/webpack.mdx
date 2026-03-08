@@ -1,0 +1,260 @@
+---
+title: Webpack Plugin
+description: Integrate Closure Next with Webpack for optimized bundling and code splitting
+---
+
+# Webpack Plugin
+
+The `@closure-next/webpack` plugin provides seamless integration with Webpack, enabling optimized bundling, automatic code splitting, and tree shaking for your Closure Next applications.
+
+## Installation
+
+<Steps>
+  <Step title="Install the plugin">
+    Install the Webpack plugin package:
+    ```bash
+    npm install @closure-next/webpack
+    ```
+  </Step>
+
+  <Step title="Configure Webpack">
+    Add the plugin to your `webpack.config.js`:
+    ```javascript
+    import { ClosureNextWebpackPlugin } from '@closure-next/webpack';
+
+    export default {
+      plugins: [
+        new ClosureNextWebpackPlugin()
+      ]
+    };
+    ```
+  </Step>
+
+  <Step title="Run Webpack">
+    Build your application:
+    ```bash
+    webpack --config webpack.config.js
+    ```
+  </Step>
+</Steps>
+
+## Plugin Options
+
+The `ClosureNextWebpackPlugin` accepts the following configuration options:
+
+### codeSplitting
+
+<ParamField path="codeSplitting" type="boolean" default="true">
+  Enable automatic code splitting for Closure Next components. When enabled, the plugin creates a separate chunk for `@closure-next` modules with optimized caching.
+</ParamField>
+
+### treeShaking
+
+<ParamField path="treeShaking" type="boolean" default="true">
+  Enable tree shaking optimizations. This configures Webpack's `usedExports` and `sideEffects` optimization settings to eliminate unused code.
+</ParamField>
+
+### paths
+
+<ParamField path="paths" type="Record<string, string>">
+  Custom module resolution paths. These are added to Webpack's `resolve.alias` configuration for simplified imports.
+</ParamField>
+
+## Configuration Examples
+
+<CodeGroup>
+```javascript Basic Configuration
+import { ClosureNextWebpackPlugin } from '@closure-next/webpack';
+
+export default {
+  entry: './src/index.ts',
+  output: {
+    filename: '[name].bundle.js',
+    path: './dist'
+  },
+  plugins: [
+    new ClosureNextWebpackPlugin()
+  ]
+};
+```
+
+```javascript Development Mode
+import { ClosureNextWebpackPlugin } from '@closure-next/webpack';
+
+export default {
+  mode: 'development',
+  devtool: 'source-map',
+  entry: './src/index.ts',
+  output: {
+    filename: '[name].bundle.js',
+    path: './dist'
+  },
+  plugins: [
+    new ClosureNextWebpackPlugin({
+      codeSplitting: true,
+      treeShaking: false // Disable for faster dev builds
+    })
+  ],
+  devServer: {
+    hot: true
+  }
+};
+```
+
+```javascript Production Mode
+import { ClosureNextWebpackPlugin } from '@closure-next/webpack';
+import path from 'path';
+
+export default {
+  mode: 'production',
+  entry: './src/index.ts',
+  output: {
+    filename: '[name].[contenthash].js',
+    chunkFilename: '[name].[contenthash].chunk.js',
+    path: path.resolve(__dirname, 'dist')
+  },
+  resolve: {
+    extensions: ['.ts', '.tsx', '.js']
+  },
+  plugins: [
+    new ClosureNextWebpackPlugin({
+      codeSplitting: true,
+      treeShaking: true,
+      paths: {
+        '@closure-next': path.resolve(__dirname, 'node_modules/@closure-next')
+      }
+    })
+  ]
+};
+```
+
+```javascript Custom Paths
+import { ClosureNextWebpackPlugin } from '@closure-next/webpack';
+import path from 'path';
+
+export default {
+  entry: './src/index.ts',
+  plugins: [
+    new ClosureNextWebpackPlugin({
+      paths: {
+        '@components': path.resolve(__dirname, 'src/components'),
+        '@utils': path.resolve(__dirname, 'src/utils'),
+        '@closure-next': path.resolve(__dirname, 'node_modules/@closure-next')
+      }
+    })
+  ]
+};
+```
+</CodeGroup>
+
+## How It Works
+
+The Webpack plugin automatically configures several optimization settings:
+
+### Code Splitting
+
+When `codeSplitting` is enabled, the plugin configures `splitChunks` to create a separate vendor chunk for all `@closure-next` modules:
+
+```javascript
+optimization: {
+  splitChunks: {
+    chunks: 'all',
+    cacheGroups: {
+      closureNext: {
+        test: /[\\/]node_modules[\\/]@closure-next[\\/]/,
+        name: 'closure-next',
+        chunks: 'all',
+        priority: 10
+      }
+    }
+  }
+}
+```
+
+This improves caching by separating framework code from your application code.
+
+### Tree Shaking
+
+When `treeShaking` is enabled, the plugin configures Webpack to eliminate unused exports:
+
+```javascript
+optimization: {
+  usedExports: true,
+  sideEffects: true
+}
+```
+
+### TypeScript Support
+
+The plugin automatically adds a TypeScript loader for `.ts` and `.tsx` files:
+
+```javascript
+module: {
+  rules: [
+    {
+      test: /\.(ts|tsx)$/,
+      exclude: /node_modules/,
+      use: [
+        {
+          loader: 'ts-loader',
+          options: {
+            transpileOnly: true
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+## TypeScript Types
+
+The plugin includes full TypeScript definitions:
+
+```typescript
+import { ClosureNextWebpackPlugin } from '@closure-next/webpack';
+import type { Configuration } from 'webpack';
+
+const config: Configuration = {
+  plugins: [
+    new ClosureNextWebpackPlugin({
+      codeSplitting: true,
+      treeShaking: true,
+      paths: {
+        '@components': './src/components'
+      }
+    })
+  ]
+};
+
+export default config;
+```
+
+## Optimization Tips
+
+<Tip>
+  **Development builds**: Disable tree shaking during development for faster rebuild times.
+</Tip>
+
+<Tip>
+  **Production builds**: Always enable both `codeSplitting` and `treeShaking` for optimal bundle sizes.
+</Tip>
+
+<Tip>
+  **Custom paths**: Use the `paths` option to create convenient import aliases and reduce relative path imports.
+</Tip>
+
+<Warning>
+  The plugin requires **Webpack 5.0.0 or higher**. Make sure your Webpack version is compatible.
+</Warning>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Vite Plugin" icon="bolt" href="/build-tools/vite">
+    Learn about the Vite plugin for faster development
+  </Card>
+  <Card title="Rollup Plugin" icon="package" href="/build-tools/rollup">
+    Explore the Rollup plugin for library bundling
+  </Card>
+</CardGroup>

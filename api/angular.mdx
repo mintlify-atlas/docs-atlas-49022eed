@@ -1,0 +1,511 @@
+---
+title: "Angular Integration"
+description: "Angular integration API for Closure Next components"
+---
+
+## Overview
+
+The `@closure-next/angular` package provides integration between Closure Next components and Angular applications through directives and services.
+
+## Installation
+
+```bash
+npm install @closure-next/angular
+```
+
+## Exports
+
+### Classes
+
+<ResponseField name="Component" type="class">
+  Re-exported from `@closure-next/core`.
+</ResponseField>
+
+<ResponseField name="DOMHelper" type="class">
+  Re-exported from `@closure-next/core`.
+</ResponseField>
+
+<ResponseField name="ServerComponent" type="class">
+  Server-side rendering component with SSR support.
+</ResponseField>
+
+### Types
+
+<ResponseField name="ComponentInterface" type="interface">
+  Re-exported from `@closure-next/core`.
+</ResponseField>
+
+<ResponseField name="ComponentState" type="type">
+  Re-exported from `@closure-next/core`.
+</ResponseField>
+
+<ResponseField name="ClosureComponentOptions" type="interface">
+  Options for configuring Closure components in Angular.
+</ResponseField>
+
+<ResponseField name="ClosureDirective" type="interface">
+  Interface for the Closure directive configuration.
+</ResponseField>
+
+<ResponseField name="ClosureInstance" type="type">
+  Component instance type alias.
+</ResponseField>
+
+<ResponseField name="SSROptions" type="interface">
+  Options for server-side rendering configuration.
+</ResponseField>
+
+<ResponseField name="HydrationOptions" type="interface">
+  Options for client-side hydration.
+</ResponseField>
+
+---
+
+## Type Definitions
+
+### ClosureComponentOptions
+
+```typescript
+interface ClosureComponentOptions<T extends typeof Component = typeof Component> {
+  component: T;
+  props?: Record<string, any>;
+  errorBoundary?: boolean;
+  ssrOptions?: {
+    hydration?: 'client-only' | 'server-first' | 'progressive';
+    ssr?: boolean;
+  };
+}
+```
+
+Configuration options for Closure components in Angular.
+
+<ParamField path="component" type="typeof Component" required>
+  The component constructor class.
+</ParamField>
+
+<ParamField path="props" type="Record<string, any>">
+  Props to pass to the component.
+</ParamField>
+
+<ParamField path="errorBoundary" type="boolean">
+  Whether to wrap the component in an error boundary. Defaults to `false`.
+</ParamField>
+
+<ParamField path="ssrOptions" type="object">
+  Server-side rendering configuration.
+  
+  **Properties**:
+  - `hydration`: Hydration strategy - `'client-only'`, `'server-first'`, or `'progressive'`
+  - `ssr`: Whether to enable SSR for this component
+</ParamField>
+
+### ClosureDirective
+
+```typescript
+interface ClosureDirective {
+  component: typeof Component;
+  props?: Record<string, any>;
+  errorBoundary?: boolean;
+  ssrOptions?: {
+    hydration?: 'client-only' | 'server-first' | 'progressive';
+    ssr?: boolean;
+  };
+}
+```
+
+Interface for the Closure component directive.
+
+### ClosureInstance
+
+```typescript
+type ClosureInstance<T extends typeof Component = typeof Component> = InstanceType<T>;
+```
+
+Type representing an instance of a Closure component.
+
+### SSROptions
+
+```typescript
+interface SSROptions {
+  component: typeof Component;
+  props?: Record<string, any>;
+  containerId: string;
+  hydration?: 'client-only' | 'server-first' | 'progressive';
+}
+```
+
+Options for server-side rendering.
+
+<ParamField path="component" type="typeof Component" required>
+  The component to render.
+</ParamField>
+
+<ParamField path="props" type="Record<string, any>">
+  Props to pass to the component.
+</ParamField>
+
+<ParamField path="containerId" type="string" required>
+  Container element ID for hydration.
+</ParamField>
+
+<ParamField path="hydration" type="'client-only' | 'server-first' | 'progressive'">
+  Hydration strategy to use.
+</ParamField>
+
+### HydrationOptions
+
+```typescript
+interface HydrationOptions {
+  component: typeof Component;
+  props?: Record<string, any>;
+  containerId: string;
+  hydration?: 'client-only' | 'server-first' | 'progressive';
+}
+```
+
+Options for client-side hydration. Identical to `SSROptions`.
+
+---
+
+## ServerComponent
+
+```typescript
+class ServerComponent extends Component {
+  constructor(domHelper: DOMHelper);
+  
+  async renderToString(): Promise<string>;
+  async hydrate(container?: HTMLElement): Promise<void>;
+}
+```
+
+A specialized component class for server-side rendering support in Angular applications.
+
+### Methods
+
+<ParamField path="renderToString" type="() => Promise<string>">
+  Renders the component to an HTML string for server-side rendering.
+  
+  **Returns**: A promise that resolves to the component's HTML as a string.
+  
+  **Throws**: Error if SSR is not enabled.
+</ParamField>
+
+<ParamField path="hydrate" type="(container?: HTMLElement) => Promise<void>">
+  Hydrates a server-rendered component on the client side.
+  
+  **Parameters**:
+  - `container`: Optional HTML element containing the server-rendered content. If not provided, uses the component's `id` to find the element.
+  
+  **Throws**: Error if SSR is not enabled or if no element is found for hydration.
+</ParamField>
+
+### Example
+
+```typescript
+import { ServerComponent } from '@closure-next/angular';
+import { DOMHelper } from '@closure-next/core';
+
+class MyServerComponent extends ServerComponent {
+  constructor() {
+    super(new DOMHelper(document));
+  }
+  
+  protected async createDom() {
+    this.element = document.createElement('div');
+    this.element.textContent = 'Server-rendered content';
+  }
+}
+
+// Server-side (Angular Universal)
+const component = new MyServerComponent();
+const html = await component.renderToString();
+
+// Client-side hydration
+const clientComponent = new MyServerComponent();
+await clientComponent.hydrate(container);
+```
+
+---
+
+## Usage Patterns
+
+### Module Import
+
+```typescript
+import { NgModule } from '@angular/core';
+import { ClosureNextModule } from '@closure-next/angular';
+
+@NgModule({
+  imports: [ClosureNextModule],
+  // ...
+})
+export class AppModule {}
+```
+
+### Directive Usage
+
+```typescript
+import { Component } from '@angular/core';
+import { MyClosureComponent } from './my-component';
+
+@Component({
+  selector: 'app-root',
+  template: `
+    <div
+      closureComponent
+      [component]="component"
+      [props]="props">
+    </div>
+  `
+})
+export class AppComponent {
+  component = MyClosureComponent;
+  props = {
+    title: 'Hello from Closure Next',
+    onClick: () => alert('Clicked!')
+  };
+}
+```
+
+### With Error Boundary
+
+```typescript
+@Component({
+  selector: 'app-safe-component',
+  template: `
+    <div
+      closureComponent
+      [component]="component"
+      [props]="props"
+      [errorBoundary]="true">
+    </div>
+  `
+})
+export class SafeComponent {
+  component = MyClosureComponent;
+  props = { /* ... */ };
+}
+```
+
+### With SSR Configuration
+
+```typescript
+@Component({
+  selector: 'app-ssr-component',
+  template: `
+    <div
+      closureComponent
+      [component]="component"
+      [props]="props"
+      [ssrOptions]="ssrConfig">
+    </div>
+  `
+})
+export class SSRComponent {
+  component = MyClosureComponent;
+  props = { /* ... */ };
+  ssrConfig = {
+    ssr: true,
+    hydration: 'server-first' as const
+  };
+}
+```
+
+### Dependency Injection
+
+```typescript
+import { Injectable } from '@angular/core';
+import { Component as ClosureComponent } from '@closure-next/core';
+import { DOMHelper } from '@closure-next/core';
+
+@Injectable({ providedIn: 'root' })
+export class ClosureService {
+  createComponent(element: HTMLElement): ClosureComponent {
+    const component = new MyClosureComponent();
+    component.render(element);
+    return component;
+  }
+}
+
+@Component({
+  selector: 'app-injected',
+  template: '<div #container></div>'
+})
+export class InjectedComponent {
+  @ViewChild('container', { static: true }) container!: ElementRef;
+  
+  constructor(private closureService: ClosureService) {}
+  
+  ngOnInit() {
+    this.closureService.createComponent(this.container.nativeElement);
+  }
+}
+```
+
+### Change Detection Integration
+
+```typescript
+import { Component, Input, ChangeDetectorRef } from '@angular/core';
+
+@Component({
+  selector: 'app-reactive',
+  template: `
+    <div
+      closureComponent
+      [component]="component"
+      [props]="getProps()">
+    </div>
+  `
+})
+export class ReactiveComponent {
+  @Input() title = '';
+  component = MyClosureComponent;
+  
+  constructor(private cdr: ChangeDetectorRef) {}
+  
+  getProps() {
+    return {
+      title: this.title,
+      onClick: () => this.handleClick()
+    };
+  }
+  
+  handleClick() {
+    this.title = 'Updated!';
+    this.cdr.detectChanges();
+  }
+}
+```
+
+---
+
+## Hydration Strategies
+
+### Client-Only
+
+Component is rendered only on the client side:
+
+```typescript
+ssrOptions: {
+  hydration: 'client-only',
+  ssr: false
+}
+```
+
+### Server-First
+
+Component is rendered on the server and hydrated on the client:
+
+```typescript
+ssrOptions: {
+  hydration: 'server-first',
+  ssr: true
+}
+```
+
+### Progressive
+
+Component is progressively hydrated as needed:
+
+```typescript
+ssrOptions: {
+  hydration: 'progressive',
+  ssr: true
+}
+```
+
+---
+
+## Best Practices
+
+### Use TypeScript Interfaces
+
+Define clear interfaces for component props:
+
+```typescript
+interface MyComponentProps {
+  title: string;
+  count: number;
+  onClick: () => void;
+}
+
+@Component({
+  selector: 'app-typed',
+  template: `
+    <div closureComponent [component]="component" [props]="props"></div>
+  `
+})
+export class TypedComponent {
+  component = MyClosureComponent;
+  props: MyComponentProps = {
+    title: 'Hello',
+    count: 0,
+    onClick: () => {}
+  };
+}
+```
+
+### Handle Lifecycle Events
+
+```typescript
+import { OnDestroy } from '@angular/core';
+
+@Component({ /* ... */ })
+export class LifecycleComponent implements OnDestroy {
+  private closureComponent?: ClosureComponent;
+  
+  ngOnInit() {
+    this.closureComponent = new MyClosureComponent();
+    this.closureComponent.render(this.element.nativeElement);
+  }
+  
+  ngOnDestroy() {
+    this.closureComponent?.dispose();
+  }
+}
+```
+
+### Error Handling
+
+```typescript
+@Component({
+  selector: 'app-error-safe',
+  template: `
+    <div
+      closureComponent
+      [component]="component"
+      [props]="props"
+      [errorBoundary]="true"
+      (error)="handleError($event)">
+    </div>
+  `
+})
+export class ErrorSafeComponent {
+  handleError(error: Error) {
+    console.error('Component error:', error);
+    // Show user-friendly error message
+  }
+}
+```
+
+### SSR with Angular Universal
+
+```typescript
+import { isPlatformBrowser } from '@angular/common';
+import { PLATFORM_ID, Inject } from '@angular/core';
+
+@Component({ /* ... */ })
+export class UniversalComponent {
+  constructor(@Inject(PLATFORM_ID) private platformId: Object) {}
+  
+  ngOnInit() {
+    if (isPlatformBrowser(this.platformId)) {
+      // Client-side only code
+      this.hydrateComponent();
+    } else {
+      // Server-side rendering
+      this.renderComponent();
+    }
+  }
+}
+```

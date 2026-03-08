@@ -1,0 +1,369 @@
+---
+title: "Vue Integration"
+description: "Vue integration API for Closure Next components"
+---
+
+## Overview
+
+The `@closure-next/vue` package provides integration between Closure Next components and Vue 3 applications using the Composition API.
+
+## Installation
+
+```bash
+npm install @closure-next/vue
+```
+
+## Exports
+
+### Classes
+
+<ResponseField name="Component" type="class">
+  Re-exported from `@closure-next/core`.
+</ResponseField>
+
+<ResponseField name="DOMHelper" type="class">
+  Re-exported from `@closure-next/core`.
+</ResponseField>
+
+<ResponseField name="ServerComponent" type="class">
+  Server-side rendering component with SSR support.
+</ResponseField>
+
+### Types
+
+<ResponseField name="ComponentState" type="type">
+  Re-exported from `@closure-next/core`.
+</ResponseField>
+
+<ResponseField name="ClosureComponentRef" type="interface">
+  Vue-specific component reference type.
+</ResponseField>
+
+<ResponseField name="ClosureComponentOptions" type="interface">
+  Options for configuring Closure components in Vue.
+</ResponseField>
+
+<ResponseField name="ClosureInstance" type="type">
+  Component instance type with Vue-specific features.
+</ResponseField>
+
+---
+
+## Types
+
+### ClosureComponentRef
+
+```typescript
+interface ClosureComponentRef<T extends Component = Component> {
+  ref: Ref<HTMLElement | null>;
+  component: ShallowRef<T | null>;
+  setProps: (props: Partial<ComponentState>) => Promise<void>;
+}
+```
+
+The return type for Vue composables that create Closure components.
+
+<ParamField path="ref" type="Ref<HTMLElement | null>">
+  A Vue ref pointing to the DOM element where the component is rendered.
+</ParamField>
+
+<ParamField path="component" type="ShallowRef<T | null>">
+  A shallow ref containing the Closure component instance.
+</ParamField>
+
+<ParamField path="setProps" type="(props: Partial<ComponentState>) => Promise<void>">
+  Async function to update component props.
+</ParamField>
+
+### ClosureComponentOptions
+
+```typescript
+interface ClosureComponentOptions<T extends Component = Component> {
+  props?: ComponentState;
+  onMounted?: (component: T) => void;
+  onUnmounted?: (component: T) => void;
+  onError?: (error: Error) => void;
+}
+```
+
+Configuration options for Closure components in Vue.
+
+<ParamField path="props" type="ComponentState">
+  Initial props to pass to the component.
+</ParamField>
+
+<ParamField path="onMounted" type="(component: T) => void">
+  Callback function invoked when the component is mounted.
+</ParamField>
+
+<ParamField path="onUnmounted" type="(component: T) => void">
+  Callback function invoked when the component is unmounted.
+</ParamField>
+
+<ParamField path="onError" type="(error: Error) => void">
+  Error handler callback for component lifecycle errors.
+</ParamField>
+
+### ClosureInstance
+
+```typescript
+type ClosureInstance<T extends Component = Component> = T & ComponentInterface;
+```
+
+A type representing a Closure component instance with full interface support.
+
+---
+
+## ServerComponent
+
+```typescript
+class ServerComponent extends Component implements ComponentInterface {
+  constructor(domHelper: DOMHelper);
+  
+  async renderToString(): Promise<string>;
+  async hydrate(container?: HTMLElement): Promise<void>;
+  enableSSR(): void;
+  disableSSR(): void;
+  isSSREnabled(): boolean;
+}
+```
+
+A specialized component class for server-side rendering support in Vue applications.
+
+### Methods
+
+<ParamField path="renderToString" type="() => Promise<string>">
+  Renders the component to an HTML string for server-side rendering.
+  
+  **Returns**: A promise that resolves to the component's HTML as a string.
+  
+  **Throws**: Error if SSR is not enabled.
+</ParamField>
+
+<ParamField path="hydrate" type="(container?: HTMLElement) => Promise<void>">
+  Hydrates a server-rendered component on the client side.
+  
+  **Parameters**:
+  - `container`: Optional HTML element containing the server-rendered content. If not provided, uses the component's `id` to find the element.
+  
+  **Throws**: Error if SSR is not enabled or if no element is found for hydration.
+</ParamField>
+
+<ParamField path="enableSSR" type="() => void">
+  Enables server-side rendering for this component.
+</ParamField>
+
+<ParamField path="disableSSR" type="() => void">
+  Disables server-side rendering for this component.
+</ParamField>
+
+<ParamField path="isSSREnabled" type="() => boolean">
+  Returns whether SSR is currently enabled for this component.
+</ParamField>
+
+### Example
+
+```typescript
+import { ServerComponent } from '@closure-next/vue';
+import { DOMHelper } from '@closure-next/core';
+
+class MyServerComponent extends ServerComponent {
+  constructor() {
+    super(new DOMHelper(document));
+  }
+  
+  protected async createDom() {
+    this.element = document.createElement('div');
+    this.element.textContent = 'Server-rendered content';
+  }
+}
+
+// Server-side (e.g., Nuxt)
+const component = new MyServerComponent();
+const html = await component.renderToString();
+
+// Client-side hydration
+const clientComponent = new MyServerComponent();
+await clientComponent.hydrate(container);
+```
+
+---
+
+## Usage Patterns
+
+### Basic Usage with Composition API
+
+```vue
+<script setup lang="ts">
+import { useClosureComponent } from '@closure-next/vue';
+import { MyClosureComponent } from './my-component';
+
+const { ref, component } = useClosureComponent(MyClosureComponent, {
+  title: 'Hello from Closure Next',
+  onClick: () => alert('Clicked!')
+});
+</script>
+
+<template>
+  <div ref="ref"></div>
+</template>
+```
+
+### Reactive Props
+
+```vue
+<script setup lang="ts">
+import { ref, watch } from 'vue';
+import { useClosureComponent } from '@closure-next/vue';
+import { MyClosureComponent } from './my-component';
+
+const title = ref('Initial Title');
+
+const { ref: containerRef, component } = useClosureComponent(MyClosureComponent, {
+  title: title.value
+});
+
+// React to prop changes
+watch(title, (newTitle) => {
+  if (component.value) {
+    component.value.setTitle(newTitle);
+  }
+});
+</script>
+
+<template>
+  <div>
+    <input v-model="title" />
+    <div ref="containerRef"></div>
+  </div>
+</template>
+```
+
+### TypeScript Support
+
+```vue
+<script setup lang="ts">
+import type { Component } from '@closure-next/core';
+import { useClosureComponent } from '@closure-next/vue';
+
+interface MyComponentProps {
+  title: string;
+  onClick: () => void;
+}
+
+class MyComponent extends Component {
+  setTitle(title: string): void { /* ... */ }
+  setOnClick(handler: () => void): void { /* ... */ }
+}
+
+const { ref, component } = useClosureComponent<MyComponent>(MyComponent, {
+  title: 'Hello', // Type-checked
+  onClick: () => {} // Type-checked
+});
+</script>
+
+<template>
+  <div ref="ref"></div>
+</template>
+```
+
+### Lifecycle Hooks
+
+```vue
+<script setup lang="ts">
+import { onMounted, onUnmounted } from 'vue';
+import { useClosureComponent } from '@closure-next/vue';
+import { MyClosureComponent } from './my-component';
+
+const { ref, component } = useClosureComponent(MyClosureComponent);
+
+onMounted(() => {
+  console.log('Component mounted:', component.value);
+});
+
+onUnmounted(() => {
+  console.log('Component will unmount');
+  // Cleanup is automatic, but you can add custom logic
+});
+</script>
+
+<template>
+  <div ref="ref"></div>
+</template>
+```
+
+---
+
+## Best Practices
+
+### Use ShallowRef for Component Instances
+
+The integration uses `ShallowRef` for component instances to avoid deep reactivity overhead:
+
+```typescript
+const component: ShallowRef<MyComponent | null> = shallowRef(null);
+```
+
+### Handle Async Operations
+
+When working with component methods that return promises:
+
+```vue
+<script setup lang="ts">
+const { ref, component, setProps } = useClosureComponent(MyComponent);
+
+async function updateComponent() {
+  await setProps({ title: 'New Title' });
+  console.log('Props updated');
+}
+</script>
+```
+
+### Error Handling
+
+```vue
+<script setup lang="ts">
+import { ref } from 'vue';
+import { useClosureComponent } from '@closure-next/vue';
+
+const error = ref<Error | null>(null);
+
+const { ref: containerRef, component } = useClosureComponent(MyComponent, {
+  onError: (err) => {
+    error.value = err;
+    console.error('Component error:', err);
+  }
+});
+</script>
+
+<template>
+  <div>
+    <div v-if="error" class="error">{{ error.message }}</div>
+    <div ref="containerRef"></div>
+  </div>
+</template>
+```
+
+### SSR with Nuxt
+
+```vue
+<script setup lang="ts">
+import { ServerComponent } from '@closure-next/vue';
+import { onMounted } from 'vue';
+
+const isServer = typeof window === 'undefined';
+
+if (isServer) {
+  // Server-side rendering
+  const component = new MyServerComponent();
+  const html = await component.renderToString();
+  // Use html in template
+} else {
+  // Client-side hydration
+  onMounted(async () => {
+    const component = new MyServerComponent();
+    await component.hydrate(container.value);
+  });
+}
+</script>
+```

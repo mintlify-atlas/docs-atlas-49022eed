@@ -1,0 +1,381 @@
+---
+title: DOMHelper
+description: DOM manipulation helper class for Closure Next
+---
+
+The `DOMHelper` class provides a safe abstraction for DOM operations, supporting both browser and server-side environments. It wraps the native DOM API with error handling and consistent behavior.
+
+## Constructor
+
+```typescript
+constructor(document?: Document)
+```
+
+<ParamField path="document" type="Document">
+  Optional Document instance. If not provided, uses `window.document`. Required in server-side environments where `window.document` is unavailable.
+</ParamField>
+
+**Example:**
+```typescript
+import { DOMHelper } from '@closure/core';
+
+// Browser environment
+const domHelper = new DOMHelper();
+
+// Server-side with JSDOM
+import { JSDOM } from 'jsdom';
+const { document } = new JSDOM('<!DOCTYPE html>').window;
+const domHelper = new DOMHelper(document);
+```
+
+## Element Creation
+
+### createElement()
+
+Creates a new HTML element with the specified tag name.
+
+```typescript
+createElement(tagName: string): HTMLElement
+```
+
+<ParamField path="tagName" type="string" required>
+  The tag name of the element to create (e.g., 'div', 'span', 'button')
+</ParamField>
+
+**Returns:** `HTMLElement` - The created element
+
+**Throws:** `Error` if the document is not initialized or element creation fails
+
+**Example:**
+```typescript
+const div = domHelper.createElement('div');
+const button = domHelper.createElement('button');
+const article = domHelper.createElement('article');
+```
+
+### createTextNode()
+
+Creates a new text node with the specified content.
+
+```typescript
+createTextNode(text: string): Text
+```
+
+<ParamField path="text" type="string" required>
+  The text content for the text node
+</ParamField>
+
+**Returns:** `Text` - The created text node
+
+**Example:**
+```typescript
+const textNode = domHelper.createTextNode('Hello, World!');
+const div = domHelper.createElement('div');
+domHelper.appendChild(div, textNode);
+```
+
+## Element Selection
+
+### getElementById()
+
+Finds an element by its ID attribute.
+
+```typescript
+getElementById(id: string): Element | null
+```
+
+<ParamField path="id" type="string" required>
+  The ID of the element to find
+</ParamField>
+
+**Returns:** `Element | null` - The element with the specified ID, or null if not found
+
+**Example:**
+```typescript
+const element = domHelper.getElementById('my-component');
+if (element) {
+  console.log('Found element:', element);
+}
+```
+
+### getElementsByTagName()
+
+Finds all elements with the specified tag name.
+
+```typescript
+getElementsByTagName(tagName: string): HTMLCollectionOf<Element>
+```
+
+<ParamField path="tagName" type="string" required>
+  The tag name to search for (e.g., 'div', 'button')
+</ParamField>
+
+**Returns:** `HTMLCollectionOf<Element>` - Live collection of matching elements
+
+**Example:**
+```typescript
+const divs = domHelper.getElementsByTagName('div');
+console.log(`Found ${divs.length} div elements`);
+```
+
+### getElementsByClassName()
+
+Finds all elements with the specified class name.
+
+```typescript
+getElementsByClassName(className: string): HTMLCollectionOf<Element>
+```
+
+<ParamField path="className" type="string" required>
+  The class name to search for
+</ParamField>
+
+**Returns:** `HTMLCollectionOf<Element>` - Live collection of matching elements
+
+**Example:**
+```typescript
+const activeElements = domHelper.getElementsByClassName('active');
+for (const element of activeElements) {
+  console.log(element);
+}
+```
+
+### querySelector()
+
+Finds the first element matching a CSS selector.
+
+```typescript
+querySelector(selector: string): Element | null
+```
+
+<ParamField path="selector" type="string" required>
+  The CSS selector to match
+</ParamField>
+
+**Returns:** `Element | null` - The first matching element, or null if none found
+
+**Example:**
+```typescript
+const element = domHelper.querySelector('.container > .active');
+if (element) {
+  console.log('Found active element in container');
+}
+```
+
+### querySelectorAll()
+
+Finds all elements matching a CSS selector.
+
+```typescript
+querySelectorAll(selector: string): NodeListOf<Element>
+```
+
+<ParamField path="selector" type="string" required>
+  The CSS selector to match
+</ParamField>
+
+**Returns:** `NodeListOf<Element>` - Static NodeList of matching elements
+
+**Example:**
+```typescript
+const buttons = domHelper.querySelectorAll('button.primary');
+buttons.forEach(button => {
+  console.log(button.textContent);
+});
+```
+
+## Attribute Management
+
+### setAttribute()
+
+Sets an attribute on an element.
+
+```typescript
+setAttribute(element: Element, name: string, value: string): void
+```
+
+<ParamField path="element" type="Element" required>
+  The element to set the attribute on
+</ParamField>
+
+<ParamField path="name" type="string" required>
+  The attribute name
+</ParamField>
+
+<ParamField path="value" type="string" required>
+  The attribute value
+</ParamField>
+
+**Example:**
+```typescript
+const div = domHelper.createElement('div');
+domHelper.setAttribute(div, 'data-id', '123');
+domHelper.setAttribute(div, 'aria-label', 'My Component');
+```
+
+### getAttribute()
+
+Gets an attribute value from an element.
+
+```typescript
+getAttribute(element: Element, name: string): string | null
+```
+
+<ParamField path="element" type="Element" required>
+  The element to get the attribute from
+</ParamField>
+
+<ParamField path="name" type="string" required>
+  The attribute name
+</ParamField>
+
+**Returns:** `string | null` - The attribute value, or null if not present
+
+**Example:**
+```typescript
+const div = domHelper.getElementById('my-component');
+if (div) {
+  const id = domHelper.getAttribute(div, 'data-id');
+  console.log('Data ID:', id);
+}
+```
+
+### removeAttribute()
+
+Removes an attribute from an element.
+
+```typescript
+removeAttribute(element: Element, name: string): void
+```
+
+<ParamField path="element" type="Element" required>
+  The element to remove the attribute from
+</ParamField>
+
+<ParamField path="name" type="string" required>
+  The attribute name to remove
+</ParamField>
+
+**Example:**
+```typescript
+const div = domHelper.getElementById('my-component');
+if (div) {
+  domHelper.removeAttribute(div, 'data-id');
+}
+```
+
+## DOM Manipulation
+
+### appendChild()
+
+Appends a child node to a parent node.
+
+```typescript
+appendChild(parent: Node, child: Node): void
+```
+
+<ParamField path="parent" type="Node" required>
+  The parent node
+</ParamField>
+
+<ParamField path="child" type="Node" required>
+  The child node to append
+</ParamField>
+
+**Example:**
+```typescript
+const parent = domHelper.createElement('div');
+const child = domHelper.createElement('span');
+domHelper.appendChild(parent, child);
+```
+
+### removeChild()
+
+Removes a child node from a parent node.
+
+```typescript
+removeChild(parent: Node, child: Node): void
+```
+
+<ParamField path="parent" type="Node" required>
+  The parent node
+</ParamField>
+
+<ParamField path="child" type="Node" required>
+  The child node to remove
+</ParamField>
+
+**Example:**
+```typescript
+const parent = domHelper.getElementById('container');
+const child = domHelper.getElementById('item');
+if (parent && child) {
+  domHelper.removeChild(parent, child);
+}
+```
+
+### insertBefore()
+
+Inserts a new node before a reference node.
+
+```typescript
+insertBefore(parent: Node, newNode: Node, referenceNode: Node | null): void
+```
+
+<ParamField path="parent" type="Node" required>
+  The parent node
+</ParamField>
+
+<ParamField path="newNode" type="Node" required>
+  The node to insert
+</ParamField>
+
+<ParamField path="referenceNode" type="Node | null" required>
+  The reference node to insert before. If null, appends to the end.
+</ParamField>
+
+**Example:**
+```typescript
+const parent = domHelper.createElement('div');
+const first = domHelper.createElement('span');
+const second = domHelper.createElement('span');
+
+domHelper.appendChild(parent, second);
+domHelper.insertBefore(parent, first, second); // first now comes before second
+```
+
+### replaceChild()
+
+Replaces a child node with a new node.
+
+```typescript
+replaceChild(parent: Node, newChild: Node, oldChild: Node): void
+```
+
+<ParamField path="parent" type="Node" required>
+  The parent node
+</ParamField>
+
+<ParamField path="newChild" type="Node" required>
+  The new node to insert
+</ParamField>
+
+<ParamField path="oldChild" type="Node" required>
+  The old node to replace
+</ParamField>
+
+**Example:**
+```typescript
+const parent = domHelper.getElementById('container');
+const oldChild = domHelper.getElementById('old-item');
+const newChild = domHelper.createElement('div');
+
+if (parent && oldChild) {
+  domHelper.replaceChild(parent, newChild, oldChild);
+}
+```
+
+## See Also
+
+- [Component](/api/component) - Uses DOMHelper for DOM operations
+- [Utilities](/api/utilities) - Additional DOM utility functions

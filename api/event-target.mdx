@@ -1,0 +1,292 @@
+---
+title: EventTarget
+description: Event handling system for Closure Next components
+---
+
+The `EventTarget` class provides a robust event system for components. It supports typed events, multiple listeners per event, error handling, and a special 'all' event type that receives all dispatched events.
+
+## Constructor
+
+```typescript
+constructor()
+```
+
+**Example:**
+```typescript
+import { EventTarget } from '@closure/core';
+
+const eventTarget = new EventTarget();
+```
+
+## Methods
+
+### addEventListener()
+
+Registers an event listener for a specific event type.
+
+```typescript
+addEventListener(type: EventType | string, listener: (event: EventInterface) => void): void
+```
+
+<ParamField path="type" type="EventType | string" required>
+  The event type to listen for. Can be a predefined EventType constant or a custom string.
+</ParamField>
+
+<ParamField path="listener" type="(event: EventInterface) => void" required>
+  The callback function to invoke when the event is dispatched
+</ParamField>
+
+**Example:**
+```typescript
+import { EventType } from '@closure/core';
+
+eventTarget.addEventListener('custom', (event) => {
+  console.log('Custom event:', event.data);
+});
+
+eventTarget.addEventListener(EventType.STATECHANGE, (event) => {
+  console.log('State changed:', event.data);
+});
+```
+
+### removeEventListener()
+
+Unregisters a previously registered event listener.
+
+```typescript
+removeEventListener(type: EventType | string, listener: (event: EventInterface) => void): void
+```
+
+<ParamField path="type" type="EventType | string" required>
+  The event type to stop listening for
+</ParamField>
+
+<ParamField path="listener" type="(event: EventInterface) => void" required>
+  The callback function to remove (must be the same reference as registered)
+</ParamField>
+
+**Example:**
+```typescript
+const handler = (event) => {
+  console.log('Event:', event.data);
+};
+
+eventTarget.addEventListener('custom', handler);
+eventTarget.removeEventListener('custom', handler);
+```
+
+### emit()
+
+Dispatches an event with optional data. This is an alias for `dispatchEvent()`.
+
+```typescript
+emit(type: EventType | string, data?: any): void
+```
+
+<ParamField path="type" type="EventType | string" required>
+  The event type to emit
+</ParamField>
+
+<ParamField path="data" type="any">
+  Optional data to include with the event
+</ParamField>
+
+**Example:**
+```typescript
+eventTarget.emit('custom', { count: 42 });
+eventTarget.emit(EventType.STATECHANGE, { active: true });
+```
+
+### dispatchEvent()
+
+Dispatches an event with optional data. Calls all listeners for the specific event type and all 'all' event listeners.
+
+```typescript
+dispatchEvent(type: EventType | string, data?: any): void
+```
+
+<ParamField path="type" type="EventType | string" required>
+  The event type to dispatch
+</ParamField>
+
+<ParamField path="data" type="any">
+  Optional data to include with the event
+</ParamField>
+
+**Example:**
+```typescript
+eventTarget.dispatchEvent('custom', { message: 'Hello' });
+
+// Listen to all events
+eventTarget.addEventListener(EventType.ALL, (event) => {
+  console.log(`Event ${event.type} dispatched:`, event.data);
+});
+```
+
+### dispose()
+
+Disposes of the event target, clearing all listeners and marking it as disposed. Dispatches a `DISPOSE` event before clearing.
+
+```typescript
+dispose(): void
+```
+
+**Example:**
+```typescript
+eventTarget.addEventListener(EventType.DISPOSE, () => {
+  console.log('Cleaning up...');
+});
+
+eventTarget.dispose();
+```
+
+### isDisposed()
+
+Checks if the event target has been disposed.
+
+```typescript
+isDisposed(): boolean
+```
+
+**Returns:** `boolean` - True if disposed, false otherwise
+
+**Example:**
+```typescript
+if (!eventTarget.isDisposed()) {
+  eventTarget.emit('custom', { data: 'value' });
+}
+```
+
+## Event Types
+
+### Predefined EventType Constants
+
+```typescript
+const EventType = {
+  ALL: 'all',
+  STATECHANGE: 'statechange',
+  DISPOSE: 'dispose',
+  TEST: 'test'
+} as const;
+```
+
+<ResponseField name="ALL" type="'all'">
+  Special event type that receives all dispatched events
+</ResponseField>
+
+<ResponseField name="STATECHANGE" type="'statechange'">
+  Emitted when component state changes
+</ResponseField>
+
+<ResponseField name="DISPOSE" type="'dispose'">
+  Emitted when the event target is disposed
+</ResponseField>
+
+<ResponseField name="TEST" type="'test'">
+  Test event type for unit testing
+</ResponseField>
+
+## Types
+
+### EventInterface
+
+```typescript
+interface EventInterface {
+  type: EventType | string;
+  target: EventTargetInterface;
+  data?: any;
+}
+```
+
+<ResponseField name="type" type="EventType | string">
+  The type of event that was dispatched
+</ResponseField>
+
+<ResponseField name="target" type="EventTargetInterface">
+  The event target that dispatched the event
+</ResponseField>
+
+<ResponseField name="data" type="any">
+  Optional data attached to the event
+</ResponseField>
+
+### EventTargetInterface
+
+```typescript
+interface EventTargetInterface {
+  addEventListener(type: EventType | string, listener: (event: any) => void): void;
+  removeEventListener(type: EventType | string, listener: (event: any) => void): void;
+  dispatchEvent(type: EventType | string, event?: any): void;
+  emit(type: EventType | string, data?: any): void;
+  dispose(): void;
+  isDisposed(): boolean;
+}
+```
+
+## Usage Examples
+
+### Basic Event Handling
+
+```typescript
+import { EventTarget, EventType } from '@closure/core';
+
+const target = new EventTarget();
+
+// Add listener
+target.addEventListener('custom', (event) => {
+  console.log('Received:', event.data);
+});
+
+// Dispatch event
+target.emit('custom', { message: 'Hello' });
+```
+
+### Listening to All Events
+
+```typescript
+const target = new EventTarget();
+
+// Listen to all events
+target.addEventListener(EventType.ALL, (event) => {
+  console.log(`Event type: ${event.type}`);
+  console.log(`Event data:`, event.data);
+});
+
+target.emit('custom1', { value: 1 });
+target.emit('custom2', { value: 2 });
+// Both events are logged by the ALL listener
+```
+
+### Cleanup on Dispose
+
+```typescript
+const target = new EventTarget();
+
+target.addEventListener(EventType.DISPOSE, () => {
+  console.log('Cleanup resources...');
+  // Close connections, clear timers, etc.
+});
+
+// Later...
+target.dispose();
+```
+
+### Error Handling
+
+Event listeners that throw errors are caught and logged, preventing one failing listener from affecting others:
+
+```typescript
+target.addEventListener('test', () => {
+  throw new Error('Oops!');
+});
+
+target.addEventListener('test', () => {
+  console.log('This still runs');
+});
+
+target.emit('test'); // Error is logged, second listener still executes
+```
+
+## See Also
+
+- [Component](/api/component) - Extends EventTarget for UI components

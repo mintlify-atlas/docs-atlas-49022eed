@@ -1,0 +1,258 @@
+---
+title: Server-Side Rendering
+description: Enable server-side rendering for Closure Next components across frameworks
+icon: server
+---
+
+## Overview
+
+Closure Next provides first-class support for server-side rendering (SSR), allowing you to render components on the server and hydrate them on the client. This improves initial page load performance and SEO.
+
+## Core SSR API
+
+The base SSR functionality is available through the `ServerComponent` class in React integration:
+
+```typescript
+import { ServerComponent } from '@closure-next/react/server';
+import { DOMHelper } from '@closure-next/core';
+
+class MyComponent extends ServerComponent {
+  constructor(domHelper: DOMHelper) {
+    super(domHelper);
+    this.enableSSR();
+  }
+
+  async renderToString(): Promise<string> {
+    if (!this.element) {
+      await this.createDom();
+    }
+    return this.element?.outerHTML || '';
+  }
+
+  async hydrate(container?: HTMLElement): Promise<void> {
+    if (container) {
+      this.element = container.firstElementChild as HTMLElement;
+    }
+    await this.createDom();
+  }
+}
+```
+
+See source: `src/integrations/react/src/server.ts:11-19`
+
+## Hydration Strategies
+
+Closure Next supports three hydration strategies:
+
+### Client-Only
+
+No server rendering, component is only rendered on the client:
+
+```typescript
+withClosureNext(Page, {
+  ssr: false,
+  hydration: 'client-only'
+});
+```
+
+### Server-First
+
+Components are fully rendered on the server and then hydrated on the client:
+
+```typescript
+withClosureNext(Page, {
+  ssr: true,
+  hydration: 'server-first'
+});
+```
+
+### Progressive Hydration
+
+Components are incrementally hydrated as they become visible or interactive:
+
+```typescript
+withClosureNext(Page, {
+  ssr: true,
+  hydration: 'progressive' // default
+});
+```
+
+<Warning>
+  Progressive hydration requires components to be non-blocking. Avoid heavy initialization logic in constructors.
+</Warning>
+
+## SSR Testing
+
+You can test SSR functionality using the provided utilities:
+
+```typescript
+import { renderToString, hydrateComponent } from '@closure-next/angular/server';
+
+describe('SSR Integration', () => {
+  it('should render component to string', async () => {
+    const html = await renderToString(TestComponent, { 
+      title: 'SSR Title' 
+    });
+    expect(html).toContain('data-title="SSR Title"');
+  });
+
+  it('should hydrate component with props', async () => {
+    const container = document.createElement('div');
+    container.innerHTML = '<div class="test-component">...</div>';
+
+    await hydrateComponent(TestComponent, container, { 
+      title: 'SSR Title' 
+    });
+    expect(container.querySelector('.test-component')).toBeTruthy();
+  });
+});
+```
+
+See example: `src/integrations/angular/__tests__/ssr/ssr.test.ts:44-59`
+
+## SSR Best Practices
+
+<Steps>
+  <Step title="Enable SSR conditionally">
+    Only enable SSR for components that benefit from it:
+    ```typescript
+    enableSSR(): void {
+      this.ssrEnabled = true;
+    }
+    ```
+    Source: `src/integrations/react/src/server.ts:39-41`
+  </Step>
+
+  <Step title="Handle platform detection">
+    Check if code is running on server or client:
+    ```typescript
+    if (typeof window === 'undefined') {
+      // Server-side logic
+    } else {
+      // Client-side logic
+    }
+    ```
+  </Step>
+
+  <Step title="Clean up resources">
+    Always dispose components after server rendering:
+    ```typescript
+    const component = new ComponentClass();
+    const html = element.innerHTML;
+    component.dispose(); // Critical for memory management
+    return html;
+    ```
+    Source: `src/next/src/index.tsx:74-76`
+  </Step>
+
+  <Step title="Apply props before rendering">
+    Set component properties before creating DOM:
+    ```typescript
+    if (props) {
+      Object.entries(props).forEach(([key, value]) => {
+        (component as any)[key] = value;
+      });
+    }
+    component.render(element);
+    ```
+    Source: `src/next/src/index.tsx:61-65`
+  </Step>
+</Steps>
+
+## Common SSR Gotchas
+
+<Warning>
+  **Browser APIs**: Avoid using `window`, `document`, `localStorage` in component constructors or during SSR.
+  
+  ```typescript
+  // Bad
+  class MyComponent extends Component {
+    constructor() {
+      this.width = window.innerWidth; // Error on server!
+    }
+  }
+  
+  // Good
+  class MyComponent extends Component {
+    onMount() {
+      if (typeof window !== 'undefined') {
+        this.width = window.innerWidth;
+      }
+    }
+  }
+  ```
+</Warning>
+
+<Warning>
+  **Async initialization**: Don't use async constructors. Initialize async resources in lifecycle methods:
+  
+  ```typescript
+  // Bad
+  constructor() {
+    await this.loadData(); // Can't await in constructor
+  }
+  
+  // Good
+  async componentDidMount() {
+    await this.loadData();
+  }
+  ```
+</Warning>
+
+<Warning>
+  **Memory leaks**: Always clean up event listeners and timers during hydration:
+  
+  ```typescript
+  dispose(): void {
+    if (this.timer) clearInterval(this.timer);
+    super.dispose();
+  }
+  ```
+</Warning>
+
+## Framework-Specific SSR
+
+For framework-specific SSR implementations, see:
+
+<CardGroup cols={2}>
+  <Card title="Next.js SSR" icon="react" href="/advanced/nextjs">
+    React Server Components and Next.js integration
+  </Card>
+  <Card title="Nuxt.js SSR" icon="vuejs" href="/advanced/nuxtjs">
+    Vue SSR and Nuxt.js integration
+  </Card>
+</CardGroup>
+
+## Performance Considerations
+
+### Server Rendering Time
+
+- **Target**: < 100ms per component
+- **Profile**: Use `console.time()` to measure render time
+- **Optimize**: Minimize DOM operations during SSR
+
+### Hydration Time
+
+- **Target**: < 50ms per component
+- **Strategy**: Use progressive hydration for non-critical components
+- **Monitor**: Track Time to Interactive (TTI) metrics
+
+## Debugging SSR
+
+Enable SSR debugging:
+
+```typescript
+const component = new MyComponent();
+console.log('SSR enabled:', component.isSSREnabled());
+
+const html = await component.renderToString();
+console.log('Rendered HTML:', html);
+```
+
+Source: `src/integrations/react/src/server.ts:47-49`
+
+## Related Resources
+
+- [Next.js Integration](/advanced/nextjs)
+- [Nuxt.js Integration](/advanced/nuxtjs)
+- [Testing Utilities](/advanced/testing)

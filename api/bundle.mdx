@@ -1,0 +1,243 @@
+---
+title: Bundle
+description: Module bundling and lazy loading system for Closure Next
+---
+
+The `Bundle` class provides a module management system for organizing and loading code bundles. It supports loading, unloading, and retrieving modules with type safety.
+
+## Constructor
+
+```typescript
+constructor()
+```
+
+**Example:**
+```typescript
+import { Bundle } from '@closure/core';
+
+const bundle = new Bundle();
+```
+
+## Methods
+
+### load()
+
+Loads the bundle, making its modules available for retrieval. This is an async operation that can be extended to perform actual module loading.
+
+```typescript
+async load(): Promise<void>
+```
+
+**Returns:** `Promise<void>`
+
+**Example:**
+```typescript
+const bundle = new Bundle();
+await bundle.load();
+
+if (bundle.isLoaded()) {
+  console.log('Bundle is ready');
+}
+```
+
+### unload()
+
+Unloads the bundle, clearing all modules and resetting the loaded state.
+
+```typescript
+async unload(): Promise<void>
+```
+
+**Returns:** `Promise<void>`
+
+**Example:**
+```typescript
+await bundle.unload();
+console.log(bundle.isLoaded()); // false
+```
+
+### isLoaded()
+
+Checks if the bundle has been loaded.
+
+```typescript
+isLoaded(): boolean
+```
+
+**Returns:** `boolean` - True if loaded, false otherwise
+
+**Example:**
+```typescript
+if (bundle.isLoaded()) {
+  const module = await bundle.getModule('my-module');
+}
+```
+
+### getModule()
+
+Retrieves a module from the bundle by name with type safety.
+
+```typescript
+async getModule<T>(name: string): Promise<T>
+```
+
+<ParamField path="name" type="string" required>
+  The name of the module to retrieve
+</ParamField>
+
+<ParamField path="T" type="type parameter">
+  The expected type of the module
+</ParamField>
+
+**Returns:** `Promise<T>` - The requested module
+
+**Throws:**
+- `Error` if the bundle is not loaded
+- `Error` if the module is not found
+
+**Example:**
+```typescript
+interface MyModule {
+  init(): void;
+  getData(): string;
+}
+
+const bundle = new Bundle();
+await bundle.load();
+
+try {
+  const myModule = await bundle.getModule<MyModule>('my-module');
+  myModule.init();
+  console.log(myModule.getData());
+} catch (error) {
+  console.error('Failed to load module:', error);
+}
+```
+
+### hasModule()
+
+Checks if a module exists in the bundle.
+
+```typescript
+hasModule(name: string): boolean
+```
+
+<ParamField path="name" type="string" required>
+  The name of the module to check
+</ParamField>
+
+**Returns:** `boolean` - True if the module exists, false otherwise
+
+**Example:**
+```typescript
+if (bundle.hasModule('my-module')) {
+  const module = await bundle.getModule('my-module');
+} else {
+  console.log('Module not found');
+}
+```
+
+## Types
+
+### BundleInterface
+
+```typescript
+interface BundleInterface {
+  load(): Promise<void>;
+  unload(): Promise<void>;
+  isLoaded(): boolean;
+  getModule<T>(name: string): Promise<T>;
+  hasModule(name: string): boolean;
+}
+```
+
+## Usage Examples
+
+### Basic Bundle Usage
+
+```typescript
+import { Bundle } from '@closure/core';
+
+const bundle = new Bundle();
+
+// Load the bundle
+await bundle.load();
+
+// Check if a module exists
+if (bundle.hasModule('analytics')) {
+  const analytics = await bundle.getModule('analytics');
+  analytics.track('page_view');
+}
+
+// Unload when done
+await bundle.unload();
+```
+
+### Type-Safe Module Loading
+
+```typescript
+interface AuthModule {
+  login(username: string, password: string): Promise<void>;
+  logout(): void;
+  isAuthenticated(): boolean;
+}
+
+const bundle = new Bundle();
+await bundle.load();
+
+const auth = await bundle.getModule<AuthModule>('auth');
+await auth.login('user', 'pass');
+
+if (auth.isAuthenticated()) {
+  console.log('User is logged in');
+}
+```
+
+### Error Handling
+
+```typescript
+const bundle = new Bundle();
+
+try {
+  // This will throw because bundle is not loaded
+  await bundle.getModule('my-module');
+} catch (error) {
+  console.error(error.message); // 'Bundle not loaded'
+}
+
+await bundle.load();
+
+try {
+  // This will throw because module doesn't exist
+  await bundle.getModule('nonexistent');
+} catch (error) {
+  console.error(error.message); // 'Module nonexistent not found'
+}
+```
+
+### Conditional Module Loading
+
+```typescript
+const bundle = new Bundle();
+await bundle.load();
+
+// Load different modules based on environment
+if (process.env.NODE_ENV === 'development') {
+  if (bundle.hasModule('devtools')) {
+    const devtools = await bundle.getModule('devtools');
+    devtools.enable();
+  }
+}
+
+// Feature detection
+if (bundle.hasModule('advanced-features')) {
+  const features = await bundle.getModule('advanced-features');
+  features.init();
+} else {
+  console.log('Advanced features not available');
+}
+```
+
+## See Also
+
+- [Lazy](/api/lazy) - Lazy loading for individual values

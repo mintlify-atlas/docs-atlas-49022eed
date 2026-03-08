@@ -1,0 +1,294 @@
+---
+title: Vite Plugin
+description: Integrate Closure Next with Vite for lightning-fast development and optimized builds
+---
+
+# Vite Plugin
+
+The `@closure-next/vite` plugin provides seamless integration with Vite, offering lightning-fast Hot Module Replacement (HMR), optimized development experience, and efficient production builds for your Closure Next applications.
+
+## Installation
+
+<Steps>
+  <Step title="Install the plugin">
+    Install the Vite plugin package:
+    ```bash
+    npm install @closure-next/vite
+    ```
+  </Step>
+
+  <Step title="Configure Vite">
+    Add the plugin to your `vite.config.ts`:
+    ```typescript
+    import { defineConfig } from 'vite';
+    import { closureNextVite } from '@closure-next/vite';
+
+    export default defineConfig({
+      plugins: [closureNextVite()]
+    });
+    ```
+  </Step>
+
+  <Step title="Run Vite">
+    Start the development server:
+    ```bash
+    vite
+    ```
+  </Step>
+</Steps>
+
+## Plugin Options
+
+The `closureNextVite` function accepts the following configuration options:
+
+### hmr
+
+<ParamField path="hmr" type="boolean" default="true">
+  Enable Hot Module Replacement for Closure Next components. When enabled, the plugin watches TypeScript files and automatically triggers HMR updates when changes are detected.
+</ParamField>
+
+### paths
+
+<ParamField path="paths" type="Record<string, string>">
+  Custom module resolution paths. These are added to Vite's `resolve.alias` configuration for simplified imports.
+</ParamField>
+
+## Configuration Examples
+
+<CodeGroup>
+```typescript Basic Configuration
+import { defineConfig } from 'vite';
+import { closureNextVite } from '@closure-next/vite';
+
+export default defineConfig({
+  plugins: [closureNextVite()]
+});
+```
+
+```typescript Development Mode
+import { defineConfig } from 'vite';
+import { closureNextVite } from '@closure-next/vite';
+
+export default defineConfig({
+  mode: 'development',
+  plugins: [
+    closureNextVite({
+      hmr: true,
+      paths: {
+        '@closure-next': './node_modules/@closure-next'
+      }
+    })
+  ],
+  server: {
+    hmr: true,
+    port: 3000
+  }
+});
+```
+
+```typescript Production Mode
+import { defineConfig } from 'vite';
+import { closureNextVite } from '@closure-next/vite';
+
+export default defineConfig({
+  mode: 'production',
+  plugins: [
+    closureNextVite({
+      hmr: false
+    })
+  ],
+  build: {
+    target: 'esnext',
+    minify: 'terser',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'closure-next': ['@closure-next/core']
+        }
+      }
+    }
+  }
+});
+```
+
+```typescript Custom Paths
+import { defineConfig } from 'vite';
+import { closureNextVite } from '@closure-next/vite';
+import path from 'path';
+
+export default defineConfig({
+  plugins: [
+    closureNextVite({
+      paths: {
+        '@components': path.resolve(__dirname, 'src/components'),
+        '@utils': path.resolve(__dirname, 'src/utils')
+      }
+    })
+  ]
+});
+```
+</CodeGroup>
+
+## How It Works
+
+The Vite plugin provides several key features:
+
+### Hot Module Replacement
+
+When `hmr` is enabled, the plugin automatically sets up HMR for TypeScript files:
+
+```typescript
+// Automatic HMR injection
+if (import.meta.hot) {
+  import.meta.hot.on('closure-next-hmr', ({ file }) => {
+    if (file === currentFile) {
+      import.meta.hot.invalidate();
+    }
+  });
+}
+```
+
+The plugin watches for changes to `.ts` and `.tsx` files and sends custom HMR events to trigger component reloads.
+
+### Module Resolution
+
+Custom paths are added to Vite's alias configuration:
+
+```typescript
+config.resolve.alias = {
+  ...config.resolve.alias,
+  ...paths
+};
+```
+
+### Import Transformation
+
+The plugin automatically transforms TypeScript imports to use `.js` extensions:
+
+```typescript
+// Before transformation
+import { Component } from './component.ts';
+
+// After transformation
+import { Component } from './component.js';
+```
+
+This ensures compatibility with ES modules and browser environments.
+
+## Development Features
+
+### Fast Refresh
+
+Changes to Closure Next components automatically trigger fast refresh:
+
+```typescript
+import { Component } from '@closure-next/core';
+
+class MyComponent extends Component {
+  // Changes here trigger instant HMR
+  render() {
+    return '<div>Hello World</div>';
+  }
+}
+```
+
+### Development Tools
+
+The plugin integrates with Vite's built-in development tools:
+
+- **Source Maps**: Automatic source map generation for debugging
+- **Error Overlay**: In-browser error reporting
+- **Network Proxy**: Configure API proxies in dev mode
+- **Asset Handling**: Automatic static asset optimization
+
+## Production Optimization
+
+Vite automatically optimizes production builds:
+
+<CardGroup cols={2}>
+  <Card title="Code Splitting" icon="scissors">
+    Automatic code splitting for dynamic imports
+  </Card>
+  <Card title="Tree Shaking" icon="tree">
+    Dead code elimination via Rollup
+  </Card>
+  <Card title="Minification" icon="compress">
+    Terser or esbuild minification
+  </Card>
+  <Card title="Asset Optimization" icon="image">
+    Automatic image and asset optimization
+  </Card>
+</CardGroup>
+
+## TypeScript Types
+
+The plugin includes full TypeScript definitions:
+
+```typescript
+import { closureNextVite } from '@closure-next/vite';
+import type { UserConfig } from 'vite';
+
+const config: UserConfig = {
+  plugins: [
+    closureNextVite({
+      hmr: true,
+      paths: {
+        '@components': './src/components'
+      }
+    })
+  ]
+};
+
+export default config;
+```
+
+## Optimization Tips
+
+<Tip>
+  **HMR Performance**: Keep HMR enabled during development for the fastest feedback loop.
+</Tip>
+
+<Tip>
+  **Build Performance**: Use `build.target: 'esnext'` for modern browsers to skip unnecessary transpilation.
+</Tip>
+
+<Tip>
+  **Code Splitting**: Configure `rollupOptions.output.manualChunks` to control how your code is split.
+</Tip>
+
+<Warning>
+  The plugin requires **Vite 5.0.0 or higher**. Make sure your Vite version is compatible.
+</Warning>
+
+## Custom HMR Handling
+
+You can implement custom HMR logic in your components:
+
+```typescript
+import { Component } from '@closure-next/core';
+
+class MyComponent extends Component {
+  render() {
+    return '<div>Hello World</div>';
+  }
+}
+
+// Custom HMR handling
+if (import.meta.hot) {
+  import.meta.hot.accept((newModule) => {
+    // Custom reload logic
+    console.log('Component reloaded:', newModule);
+  });
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Webpack Plugin" icon="cube" href="/build-tools/webpack">
+    Learn about the Webpack plugin for traditional builds
+  </Card>
+  <Card title="Rollup Plugin" icon="package" href="/build-tools/rollup">
+    Explore the Rollup plugin for library bundling
+  </Card>
+</CardGroup>

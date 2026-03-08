@@ -1,0 +1,525 @@
+---
+title: 'Bundle Class'
+description: 'Module bundling and lazy loading for code organization'
+---
+
+## Overview
+
+The `Bundle` class provides a mechanism for organizing and lazy-loading groups of related modules. It allows you to defer loading of code until it's actually needed, improving initial load times and memory efficiency.
+
+## Class Definition
+
+```typescript
+import { Bundle } from '@closure/core';
+
+class Bundle implements BundleInterface {
+  private modules: Map<string, any>;
+  private loaded: boolean;
+}
+```
+
+## Constructor
+
+```typescript
+new Bundle()
+```
+
+Creates a new empty bundle with no parameters.
+
+### Example
+
+```typescript
+import { Bundle } from '@closure/core';
+
+const bundle = new Bundle();
+```
+
+## Lifecycle Methods
+
+### load()
+
+Loads the bundle and marks it as ready for use.
+
+```typescript
+async load(): Promise<void>
+```
+
+**Behavior:**
+- Sets the bundle's loaded state to `true`
+- Returns immediately if already loaded
+- Extend this method in subclasses to implement actual module loading logic
+
+### unload()
+
+Unloads the bundle and clears all modules.
+
+```typescript
+async unload(): Promise<void>
+```
+
+**Behavior:**
+- Returns immediately if not loaded
+- Clears the internal modules map
+- Sets loaded state to `false`
+
+### isLoaded()
+
+Checks if the bundle is currently loaded.
+
+```typescript
+isLoaded(): boolean
+```
+
+**Returns:** `true` if loaded, `false` otherwise
+
+### Example
+
+```typescript
+const bundle = new Bundle();
+
+console.log(bundle.isLoaded()); // false
+
+await bundle.load();
+console.log(bundle.isLoaded()); // true
+
+await bundle.unload();
+console.log(bundle.isLoaded()); // false
+```
+
+## Module Management
+
+### getModule()
+
+Retrieves a module from the bundle by name.
+
+```typescript
+async getModule<T>(name: string): Promise<T>
+```
+
+<ParamField path="name" type="string" required>
+  The name of the module to retrieve
+</ParamField>
+
+**Returns:** Promise that resolves to the requested module
+
+**Throws:**
+- Error if bundle is not loaded
+- Error if module with given name is not found
+
+### hasModule()
+
+Checks if a module exists in the bundle.
+
+```typescript
+hasModule(name: string): boolean
+```
+
+<ParamField path="name" type="string" required>
+  The name of the module to check
+</ParamField>
+
+**Returns:** `true` if the module exists, `false` otherwise
+
+## Creating Custom Bundles
+
+Extend the `Bundle` class to create custom bundles with specific modules:
+
+```typescript
+import { Bundle } from '@closure/core';
+
+class UIBundle extends Bundle {
+  async load(): Promise<void> {
+    if (this.isLoaded()) {
+      return;
+    }
+
+    // Dynamically import modules
+    const [buttonModule, inputModule, modalModule] = await Promise.all([
+      import('./components/button'),
+      import('./components/input'),
+      import('./components/modal')
+    ]);
+
+    // Store in modules map
+    this.modules.set('button', buttonModule);
+    this.modules.set('input', inputModule);
+    this.modules.set('modal', modalModule);
+
+    await super.load();
+  }
+}
+
+// Usage
+const uiBundle = new UIBundle();
+await uiBundle.load();
+
+const ButtonComponent = await uiBundle.getModule('button');
+const button = new ButtonComponent.Button();
+```
+
+## Use Cases
+
+### Feature Bundle
+
+```typescript
+import { Bundle } from '@closure/core';
+
+class AdminFeatureBundle extends Bundle {
+  async load(): Promise<void> {
+    if (this.isLoaded()) {
+      return;
+    }
+
+    console.log('Loading admin features...');
+
+    // Load admin-specific modules
+    const [userManagement, analytics, settings] = await Promise.all([
+      import('./admin/user-management'),
+      import('./admin/analytics'),
+      import('./admin/settings')
+    ]);
+
+    this.modules.set('userManagement', userManagement);
+    this.modules.set('analytics', analytics);
+    this.modules.set('settings', settings);
+
+    await super.load();
+  }
+}
+
+// Only load when user accesses admin panel
+const adminBundle = new AdminFeatureBundle();
+
+function navigateToAdmin() {
+  await adminBundle.load();
+  const userMgmt = await adminBundle.getModule('userManagement');
+  userMgmt.initialize();
+}
+```
+
+### Route-Based Bundles
+
+```typescript
+import { Bundle } from '@closure/core';
+
+class RouteBundle extends Bundle {
+  constructor(private route: string) {
+    super();
+  }
+
+  async load(): Promise<void> {
+    if (this.isLoaded()) {
+      return;
+    }
+
+    // Load route-specific code
+    const module = await import(`./routes/${this.route}`);
+    this.modules.set('route', module);
+
+    await super.load();
+  }
+
+  async getRouteComponent() {
+    const module = await this.getModule('route');
+    return module.default;
+  }
+}
+
+// Usage with router
+const bundles = new Map<string, RouteBundle>();
+
+async function navigateTo(route: string) {
+  if (!bundles.has(route)) {
+    bundles.set(route, new RouteBundle(route));
+  }
+
+  const bundle = bundles.get(route)!;
+  await bundle.load();
+  
+  const Component = await bundle.getRouteComponent();
+  return new Component();
+}
+```
+
+### Lazy Component Bundle
+
+```typescript
+import { Bundle } from '@closure/core';
+import { Component, DOMHelper } from '@closure/core';
+
+interface ComponentFactory {
+  create(domHelper: DOMHelper): Component;
+}
+
+class ComponentBundle extends Bundle {
+  constructor(private components: Record<string, () => Promise<ComponentFactory>>) {
+    super();
+  }
+
+  async load(): Promise<void> {
+    if (this.isLoaded()) {
+      return;
+    }
+
+    // Load all component factories
+    const entries = Object.entries(this.components);
+    const factories = await Promise.all(
+      entries.map(([name, loader]) => loader().then(factory => [name, factory]))
+    );
+
+    factories.forEach(([name, factory]) => {
+      this.modules.set(name as string, factory);
+    });
+
+    await super.load();
+  }
+
+  async createComponent(name: string, domHelper: DOMHelper): Promise<Component> {
+    const factory = await this.getModule<ComponentFactory>(name);
+    return factory.create(domHelper);
+  }
+}
+
+// Usage
+const componentBundle = new ComponentBundle({
+  dialog: () => import('./components/dialog'),
+  carousel: () => import('./components/carousel'),
+  dropdown: () => import('./components/dropdown')
+});
+
+// Later, when needed
+await componentBundle.load();
+const domHelper = new DOMHelper();
+const dialog = await componentBundle.createComponent('dialog', domHelper);
+```
+
+### Service Bundle with Dependencies
+
+```typescript
+import { Bundle } from '@closure/core';
+
+interface Service {
+  initialize(): Promise<void>;
+  shutdown(): Promise<void>;
+}
+
+class ServiceBundle extends Bundle {
+  async load(): Promise<void> {
+    if (this.isLoaded()) {
+      return;
+    }
+
+    // Load services in dependency order
+    const Logger = await import('./services/logger');
+    const logger = new Logger.LogService();
+    await logger.initialize();
+    this.modules.set('logger', logger);
+
+    const Database = await import('./services/database');
+    const db = new Database.DbService(logger);
+    await db.initialize();
+    this.modules.set('database', db);
+
+    const Cache = await import('./services/cache');
+    const cache = new Cache.CacheService(logger, db);
+    await cache.initialize();
+    this.modules.set('cache', cache);
+
+    await super.load();
+  }
+
+  async unload(): Promise<void> {
+    if (!this.isLoaded()) {
+      return;
+    }
+
+    // Shutdown in reverse order
+    if (this.hasModule('cache')) {
+      const cache = await this.getModule<Service>('cache');
+      await cache.shutdown();
+    }
+
+    if (this.hasModule('database')) {
+      const db = await this.getModule<Service>('database');
+      await db.shutdown();
+    }
+
+    if (this.hasModule('logger')) {
+      const logger = await this.getModule<Service>('logger');
+      await logger.shutdown();
+    }
+
+    await super.unload();
+  }
+}
+```
+
+## Bundle Manager Pattern
+
+```typescript
+import { Bundle } from '@closure/core';
+
+class BundleManager {
+  private bundles = new Map<string, Bundle>();
+
+  register(name: string, bundle: Bundle): void {
+    this.bundles.set(name, bundle);
+  }
+
+  async load(name: string): Promise<Bundle> {
+    const bundle = this.bundles.get(name);
+    if (!bundle) {
+      throw new Error(`Bundle ${name} not registered`);
+    }
+    await bundle.load();
+    return bundle;
+  }
+
+  async unload(name: string): Promise<void> {
+    const bundle = this.bundles.get(name);
+    if (bundle) {
+      await bundle.unload();
+    }
+  }
+
+  async unloadAll(): Promise<void> {
+    const unloadPromises = Array.from(this.bundles.values()).map(b => b.unload());
+    await Promise.all(unloadPromises);
+  }
+
+  isLoaded(name: string): boolean {
+    const bundle = this.bundles.get(name);
+    return bundle ? bundle.isLoaded() : false;
+  }
+}
+
+// Usage
+const manager = new BundleManager();
+
+manager.register('ui', new UIBundle());
+manager.register('admin', new AdminFeatureBundle());
+manager.register('services', new ServiceBundle());
+
+// Load on demand
+await manager.load('ui');
+
+// Clean up on exit
+window.addEventListener('beforeunload', async () => {
+  await manager.unloadAll();
+});
+```
+
+## Error Handling
+
+```typescript
+import { Bundle } from '@closure/core';
+
+class ResilientBundle extends Bundle {
+  private retries = 3;
+
+  async load(): Promise<void> {
+    if (this.isLoaded()) {
+      return;
+    }
+
+    for (let attempt = 1; attempt <= this.retries; attempt++) {
+      try {
+        const module = await import('./heavy-module');
+        this.modules.set('main', module);
+        await super.load();
+        return;
+      } catch (error) {
+        console.error(`Load attempt ${attempt} failed:`, error);
+        if (attempt === this.retries) {
+          throw new Error(`Failed to load bundle after ${this.retries} attempts`);
+        }
+        // Wait before retry
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+      }
+    }
+  }
+}
+
+// Usage
+const bundle = new ResilientBundle();
+
+try {
+  await bundle.load();
+  const module = await bundle.getModule('main');
+  module.initialize();
+} catch (error) {
+  console.error('Bundle failed to load:', error);
+  // Show error UI
+}
+```
+
+## Performance Tips
+
+<CardGroup cols={2}>
+  <Card title="Parallel Loading" icon="gauge-high">
+    Use `Promise.all()` to load multiple modules in parallel
+  </Card>
+  
+  <Card title="Check Before Load" icon="circle-check">
+    Always check `isLoaded()` to avoid redundant loading
+  </Card>
+  
+  <Card title="Unload Unused" icon="trash">
+    Call `unload()` for bundles that are no longer needed
+  </Card>
+  
+  <Card title="Preload Critical" icon="bolt">
+    Preload essential bundles during idle time
+  </Card>
+</CardGroup>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Group related functionality">
+    Bundle modules that are logically related and typically used together:
+    ```typescript
+    // Good: Feature-based bundles
+    class EditorBundle extends Bundle { /* editor tools */ }
+    class PreviewBundle extends Bundle { /* preview components */ }
+    
+    // Avoid: Random grouping
+    class MiscBundle extends Bundle { /* unrelated stuff */ }
+    ```
+  </Accordion>
+  
+  <Accordion title="Implement proper cleanup in unload()">
+    Override `unload()` to properly clean up resources:
+    ```typescript
+    async unload(): Promise<void> {
+      // Clean up event listeners, timers, etc.
+      if (this.hasModule('service')) {
+        const service = await this.getModule('service');
+        await service.dispose();
+      }
+      await super.unload();
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Use with Lazy class for double laziness">
+    Combine Bundle with Lazy for maximum efficiency:
+    ```typescript
+    import { Bundle, Lazy } from '@closure/core';
+    
+    const lazyBundle = new Lazy(async () => {
+      const bundle = new UIBundle();
+      await bundle.load();
+      return bundle;
+    });
+    
+    // Only loaded when actually needed
+    const bundle = await lazyBundle.get();
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Related
+
+- [Lazy Loading](/core/lazy-loading) - Deferred initialization for single values
+- [Component Class](/core/components) - Can be bundled for lazy loading

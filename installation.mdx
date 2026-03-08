@@ -1,0 +1,108 @@
+---
+title: Installation
+description: Install Closure Next in your JavaScript or TypeScript project
+---
+
+## Prerequisites
+
+Before installing Closure Next, ensure you have:
+
+- **Node.js** 18.0 or higher
+- A package manager: **npm**, **yarn**, or **pnpm**
+- **TypeScript** 5.0 or higher (recommended)
+
+## Install the Core Package
+
+Closure Next is distributed as an npm package. Choose your preferred package manager:
+
+<CodeGroup>
+
+```bash npm
+npm install @closure-next/core
+```
+
+```bash yarn
+yarn add @closure-next/core
+```
+
+```bash pnpm
+pnpm add @closure-next/core
+```
+
+</CodeGroup>
+
+<Note>
+The `@closure-next/core` package has **zero dependencies**, making it extremely lightweight and secure.
+</Note>
+
+## TypeScript Configuration
+
+Closure Next is written in TypeScript and provides full type definitions out of the box. No additional `@types` packages are required.
+
+Ensure your `tsconfig.json` includes:
+
+```json tsconfig.json
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "lib": ["ES2020", "DOM"],
+    "moduleResolution": "bundler",
+    "esModuleInterop": true,
+    "strict": true
+  }
+}
+```
+
+## Verify Installation
+
+Confirm the package is installed correctly:
+
+<CodeGroup>
+
+```bash npm
+npm list @closure-next/core
+```
+
+```bash yarn
+yarn list @closure-next/core
+```
+
+```bash pnpm
+pnpm list @closure-next/core
+```
+
+</CodeGroup>
+
+You should see version `1.1.0` or higher.
+
+## What's Included
+
+The `@closure-next/core` package exports:
+
+- **`Component`** - Base class for building reactive components
+- **`DOMHelper`** - Cross-platform DOM manipulation utilities
+- **`EventTarget`** - Event-driven architecture with type-safe events
+- **`Bundle`** - Code splitting and lazy loading support
+- **`Lazy`** - Lazy initialization utilities
+
+## Next Steps
+
+<Card title="Quick Start Guide" icon="rocket" href="/quickstart">
+  Build your first component in under 5 minutes
+</Card>
+
+## Additional Packages
+
+Closure Next offers framework-specific integrations:
+
+- `@closure-next/react` - React bindings
+- `@closure-next/vue` - Vue.js integration
+- `@closure-next/next` - Next.js support
+- `@closure-next/nuxt` - Nuxt integration
+- `@closure-next/webpack` - Webpack plugin
+- `@closure-next/vite` - Vite plugin
+
+<Tip>
+Start with `@closure-next/core` to learn the fundamentals before adding framework-specific packages.
+</Tip>

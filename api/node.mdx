@@ -1,0 +1,256 @@
+---
+title: "Node.js API"
+description: "Server-side rendering for Closure Next components"
+icon: "node-js"
+---
+
+The `@closure-next/node` package provides Node.js compatibility for Closure Next components, enabling server-side rendering (SSR) capabilities.
+
+## Installation
+
+```bash
+npm install @closure-next/node
+```
+
+## Quick Start
+
+```typescript
+import { renderToString } from '@closure-next/node';
+import { MyComponent } from './components/MyComponent';
+
+// Render component to HTML string
+const html = renderToString(MyComponent, {
+  title: 'Hello World',
+  count: 42
+});
+
+console.log(html); // <div data-testid="..." data-title="Hello World">...</div>
+```
+
+## API Reference
+
+### renderToString
+
+Renders a Closure Next component to an HTML string for server-side rendering.
+
+```typescript
+function renderToString(
+  ComponentClass: new (props?: Record<string, unknown>) => Component,
+  props?: Record<string, unknown>
+): string
+```
+
+<ParamField path="ComponentClass" type="ComponentConstructor" required>
+  The component class to render. Must extend Closure Next's `Component` base class.
+</ParamField>
+
+<ParamField path="props" type="Record<string, unknown>">
+  Props to pass to the component constructor.
+</ParamField>
+
+<ResponseField name="returns" type="string">
+  HTML string representation of the rendered component.
+</ResponseField>
+
+#### Example
+
+```typescript
+import { Component } from '@closure-next/core';
+import { renderToString } from '@closure-next/node';
+
+class MyComponent extends Component {
+  constructor(props?: Record<string, unknown>) {
+    super();
+    if (props?.title) {
+      this.setTitle(props.title as string);
+    }
+  }
+  
+  private title = '';
+  
+  setTitle(title: string) {
+    this.title = title;
+  }
+  
+  override createDom(): void {
+    super.createDom();
+    const element = this.getElement();
+    if (element) {
+      element.textContent = this.title;
+      element.setAttribute('data-title', this.title);
+    }
+  }
+}
+
+// Server-side rendering
+const html = renderToString(MyComponent, { title: 'Server Rendered' });
+```
+
+## Module Exports
+
+The package provides both CommonJS and ESM exports:
+
+```typescript
+// ESM import
+import { renderToString } from '@closure-next/node';
+
+// CommonJS require
+const { renderToString } = require('@closure-next/node');
+
+// Default export
+import node from '@closure-next/node';
+node.renderToString(Component, props);
+```
+
+## Component Lifecycle
+
+When rendering on the server, the following lifecycle methods are called:
+
+1. Component constructor with props
+2. `createDom()` - Creates the DOM element
+3. `render()` - Renders the component content
+4. HTML extraction from element's `innerHTML`
+5. `dispose()` - Cleans up component resources
+
+<Note>
+  The component is automatically disposed after rendering to prevent memory leaks in server environments.
+</Note>
+
+## Use Cases
+
+### Express.js Integration
+
+```typescript
+import express from 'express';
+import { renderToString } from '@closure-next/node';
+import { PageComponent } from './components/Page';
+
+const app = express();
+
+app.get('/', (req, res) => {
+  const html = renderToString(PageComponent, {
+    title: 'Welcome',
+    user: req.user
+  });
+  
+  res.send(`
+    <!DOCTYPE html>
+    <html>
+      <head><title>My App</title></head>
+      <body>${html}</body>
+    </html>
+  `);
+});
+
+app.listen(3000);
+```
+
+### Static Site Generation
+
+```typescript
+import fs from 'fs';
+import { renderToString } from '@closure-next/node';
+import { BlogPost } from './components/BlogPost';
+
+const posts = [
+  { title: 'First Post', content: 'Hello world!' },
+  { title: 'Second Post', content: 'More content...' }
+];
+
+posts.forEach(post => {
+  const html = renderToString(BlogPost, post);
+  fs.writeFileSync(`dist/${post.title}.html`, html);
+});
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Pass all data as props">
+    Since server-rendered components don't have access to browser APIs, pass all necessary data through the props parameter.
+    
+    ```typescript
+    // Good
+    renderToString(Component, { userId: 123, theme: 'dark' });
+    
+    // Avoid - won't work on server
+    // Component tries to read from localStorage or window
+    ```
+  </Accordion>
+  
+  <Accordion title="Handle async data beforehand">
+    Fetch all required data before rendering. The `renderToString` function is synchronous.
+    
+    ```typescript
+    // Good
+    const userData = await fetchUser(userId);
+    const html = renderToString(UserProfile, { user: userData });
+    
+    // Won't work
+    const html = renderToString(UserProfile, { userId }); // Component can't fetch
+    ```
+  </Accordion>
+  
+  <Accordion title="Avoid DOM-only APIs">
+    Components rendered on the server shouldn't rely on browser-specific APIs like `window`, `localStorage`, or `document.querySelector` outside of lifecycle methods that only run in the browser.
+  </Accordion>
+</AccordionGroup>
+
+## TypeScript Support
+
+Full TypeScript definitions are included:
+
+```typescript
+import type { Component } from '@closure-next/core';
+
+type ComponentConstructor = new (props?: Record<string, unknown>) => Component;
+
+function renderToString(
+  ComponentClass: ComponentConstructor,
+  props?: Record<string, unknown>
+): string;
+```
+
+## Performance Considerations
+
+- Component disposal is automatic and immediate after rendering
+- No event listeners are attached during SSR
+- DOM operations are minimal and optimized for server environments
+- Memory usage is kept low through aggressive cleanup
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Component returns empty string">
+    Ensure your component's `createDom()` method properly creates and populates the element:
+    
+    ```typescript
+    override createDom(): void {
+      super.createDom();
+      const element = this.getElement();
+      if (element) {
+        element.innerHTML = '<div>Content</div>';
+      }
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Props not appearing in rendered HTML">
+    Make sure your component uses the props in its `createDom()` or `render()` methods:
+    
+    ```typescript
+    constructor(props?: Record<string, unknown>) {
+      super();
+      this.props = props || {};
+    }
+    
+    override createDom(): void {
+      super.createDom();
+      const element = this.getElement();
+      if (element && this.props.title) {
+        element.setAttribute('data-title', this.props.title as string);
+      }
+    }
+    ```
+  </Accordion>
+</AccordionGroup>

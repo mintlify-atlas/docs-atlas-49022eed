@@ -1,0 +1,572 @@
+---
+title: 'Web Components'
+description: 'Create standards-based custom elements from Closure Next components'
+icon: 'puzzle-piece'
+---
+
+## Overview
+
+The `@closure-next/web-components` package enables you to create standards-based Web Components from your Closure Next components, making them reusable across any framework or vanilla JavaScript.
+
+## Installation
+
+```bash
+npm install @closure-next/web-components
+```
+
+## Creating Custom Elements
+
+Define custom elements from Closure Next components:
+
+```typescript
+import { defineClosureElement } from '@closure-next/web-components';
+import { Component } from '@closure-next/core';
+
+class MyButton extends Component {
+  private label: string = '';
+
+  setLabel(label: string): void {
+    this.label = label;
+    const element = this.getElement();
+    if (element) {
+      element.setAttribute('data-label', label);
+      element.textContent = label;
+    }
+  }
+
+  getLabel(): string {
+    return this.label;
+  }
+
+  protected override async createDom(): Promise<void> {
+    if (!this.element) {
+      super.createDom();
+      const element = this.getElement();
+      if (element) {
+        element.setAttribute('role', 'button');
+        element.textContent = this.label;
+      }
+    }
+  }
+}
+
+// Register as custom element
+defineClosureElement('my-button', MyButton);
+```
+
+Now use it in HTML:
+
+```html
+<my-button></my-button>
+
+<script>
+  const button = document.querySelector('my-button');
+  button.setAttribute('label', 'Click me!');
+</script>
+```
+
+## Shadow DOM Support
+
+Enable Shadow DOM for style encapsulation:
+
+```typescript
+import { defineClosureElement } from '@closure-next/web-components';
+
+class StyledCard extends Component {
+  protected override async createDom(): Promise<void> {
+    super.createDom();
+    const element = this.getElement();
+    if (element) {
+      element.innerHTML = `
+        <style>
+          :host {
+            display: block;
+            padding: 1rem;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+          }
+        </style>
+        <slot></slot>
+      `;
+    }
+  }
+}
+
+// Enable shadow DOM
+defineClosureElement('styled-card', StyledCard, {
+  shadow: true
+});
+```
+
+Usage:
+
+```html
+<styled-card>
+  <h2>Card Title</h2>
+  <p>Card content with isolated styles</p>
+</styled-card>
+```
+
+## Observed Attributes
+
+React to attribute changes:
+
+```typescript
+import { defineClosureElement } from '@closure-next/web-components';
+
+class UserProfile extends Component {
+  private username: string = '';
+  private email: string = '';
+
+  setUsername(username: string): void {
+    this.username = username;
+    this.updateDisplay();
+  }
+
+  setEmail(email: string): void {
+    this.email = email;
+    this.updateDisplay();
+  }
+
+  getUsername(): string {
+    return this.username;
+  }
+
+  getEmail(): string {
+    return this.email;
+  }
+
+  private updateDisplay(): void {
+    const element = this.getElement();
+    if (element) {
+      element.setAttribute('data-username', this.username);
+      element.setAttribute('data-email', this.email);
+      element.innerHTML = `
+        <div class="profile">
+          <h3>${this.username}</h3>
+          <p>${this.email}</p>
+        </div>
+      `;
+    }
+  }
+
+  protected override async createDom(): Promise<void> {
+    super.createDom();
+    this.updateDisplay();
+  }
+}
+
+// Observe username and email attributes
+defineClosureElement('user-profile', UserProfile, {
+  observedAttributes: ['username', 'email']
+});
+```
+
+HTML usage:
+
+```html
+<user-profile username="john_doe" email="john@example.com"></user-profile>
+
+<script>
+  const profile = document.querySelector('user-profile');
+  
+  // Attributes automatically update the component
+  profile.setAttribute('username', 'jane_doe');
+  profile.setAttribute('email', 'jane@example.com');
+</script>
+```
+
+## Component Templates
+
+Create reusable templates:
+
+```typescript
+import { createClosureTemplate } from '@closure-next/web-components';
+
+class ProductCard extends Component {
+  // Component implementation...
+}
+
+// Create template with props
+const template = await createClosureTemplate(ProductCard, {
+  name: 'Laptop',
+  price: 999,
+  inStock: true
+});
+
+// Use template
+const container = document.getElementById('products');
+const instance = template.content.cloneNode(true);
+container.appendChild(instance);
+```
+
+## API Reference
+
+### defineClosureElement()
+
+Registers a Closure Next component as a custom element.
+
+```typescript
+function defineClosureElement<T extends Component>(
+  tagName: string,
+  ComponentClass: new () => T,
+  options?: ClosureElementOptions
+): void
+```
+
+**Parameters:**
+- `tagName` - Custom element name (must contain a hyphen)
+- `ComponentClass` - Closure Next component class
+- `options` - Optional configuration
+
+**Options:**
+
+```typescript
+interface ClosureElementOptions {
+  observedAttributes?: string[];  // Attributes to observe for changes
+  shadow?: boolean;              // Use Shadow DOM (default: false)
+}
+```
+
+### createClosureTemplate()
+
+Creates an HTML template element from a component.
+
+```typescript
+function createClosureTemplate<T extends Component>(
+  ComponentClass: new () => T,
+  props?: Record<string, unknown>
+): Promise<HTMLTemplateElement>
+```
+
+**Parameters:**
+- `ComponentClass` - Component class to instantiate
+- `props` - Properties to pass to the component
+
+**Returns:**
+- Promise resolving to an HTMLTemplateElement
+
+## Lifecycle Callbacks
+
+Web Components implement standard custom element lifecycle callbacks:
+
+```typescript
+// Component automatically handles:
+
+// connectedCallback() - Called when element is added to DOM
+// - Initializes the component
+// - Creates and renders the DOM
+// - Applies initial attributes
+
+// disconnectedCallback() - Called when element is removed from DOM
+// - Calls component.exitDocument()
+// - Disposes the component
+// - Cleans up event listeners
+
+// attributeChangedCallback() - Called when observed attributes change
+// - Updates component properties via setters
+// - Re-renders the component
+// - Updates data attributes
+```
+
+## Framework Integration
+
+<CodeGroup>
+
+```html Vanilla JavaScript
+<!DOCTYPE html>
+<html>
+  <head>
+    <script type="module">
+      import { defineClosureElement } from '@closure-next/web-components';
+      import { MyComponent } from './components.js';
+      
+      defineClosureElement('my-component', MyComponent);
+    </script>
+  </head>
+  <body>
+    <my-component></my-component>
+  </body>
+</html>
+```
+
+```jsx React
+import { useEffect, useRef } from 'react';
+import { defineClosureElement } from '@closure-next/web-components';
+import { MyComponent } from './components';
+
+// Register once
+defineClosureElement('my-component', MyComponent, {
+  observedAttributes: ['title']
+});
+
+function App() {
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (ref.current) {
+      ref.current.setAttribute('title', 'React Integration');
+    }
+  }, []);
+
+  return <my-component ref={ref} />;
+}
+```
+
+```vue Vue
+<template>
+  <my-component :title="title" @click="handleClick" />
+</template>
+
+<script setup>
+import { ref } from 'vue';
+import { defineClosureElement } from '@closure-next/web-components';
+import { MyComponent } from './components';
+
+// Register once
+defineClosureElement('my-component', MyComponent, {
+  observedAttributes: ['title']
+});
+
+const title = ref('Vue Integration');
+
+function handleClick() {
+  console.log('Component clicked!');
+}
+</script>
+```
+
+```svelte Svelte
+<script>
+  import { onMount } from 'svelte';
+  import { defineClosureElement } from '@closure-next/web-components';
+  import { MyComponent } from './components';
+
+  // Register once
+  defineClosureElement('my-component', MyComponent);
+
+  let title = 'Svelte Integration';
+</script>
+
+<my-component title={title} />
+```
+
+</CodeGroup>
+
+## Advanced Patterns
+
+### Custom Events
+
+Dispatch custom events from your components:
+
+```typescript
+class InteractiveWidget extends Component {
+  protected override async createDom(): Promise<void> {
+    super.createDom();
+    const element = this.getElement();
+    
+    if (element) {
+      element.addEventListener('click', () => {
+        // Dispatch custom event
+        const event = new CustomEvent('widget-activated', {
+          bubbles: true,
+          composed: true,  // Crosses shadow DOM boundary
+          detail: { timestamp: Date.now() }
+        });
+        element.dispatchEvent(event);
+      });
+    }
+  }
+}
+
+defineClosureElement('interactive-widget', InteractiveWidget);
+```
+
+Listen for events:
+
+```javascript
+const widget = document.querySelector('interactive-widget');
+widget.addEventListener('widget-activated', (e) => {
+  console.log('Widget activated at:', e.detail.timestamp);
+});
+```
+
+### Accessing Component Instance
+
+Access the underlying Closure component:
+
+```typescript
+const element = document.querySelector('my-component');
+const component = element._closureComponent;
+
+if (component) {
+  // Call component methods directly
+  component.setTitle('New Title');
+  component.render(element);
+}
+```
+
+### Slots and Content Projection
+
+```typescript
+class CardWithSlots extends Component {
+  protected override async createDom(): Promise<void> {
+    super.createDom();
+    const element = this.getElement();
+    
+    if (element) {
+      element.innerHTML = `
+        <div class="card">
+          <div class="card-header">
+            <slot name="header">Default Header</slot>
+          </div>
+          <div class="card-body">
+            <slot>Default content</slot>
+          </div>
+          <div class="card-footer">
+            <slot name="footer">Default Footer</slot>
+          </div>
+        </div>
+      `;
+    }
+  }
+}
+
+defineClosureElement('card-slots', CardWithSlots, { shadow: true });
+```
+
+Usage:
+
+```html
+<card-slots>
+  <h2 slot="header">Custom Header</h2>
+  <p>Custom body content</p>
+  <button slot="footer">Action</button>
+</card-slots>
+```
+
+## Testing
+
+Test your custom elements:
+
+```typescript
+import { defineClosureElement } from '@closure-next/web-components';
+import '@testing-library/jest-dom';
+
+describe('MyComponent Web Component', () => {
+  beforeEach(() => {
+    defineClosureElement('test-component', TestComponent, {
+      observedAttributes: ['title']
+    });
+  });
+
+  test('should register custom element', async () => {
+    const element = document.createElement('test-component');
+    document.body.appendChild(element);
+    
+    await customElements.whenDefined('test-component');
+    
+    expect(element).toBeInTheDocument();
+  });
+
+  test('should react to attribute changes', async () => {
+    const element = document.createElement('test-component');
+    document.body.appendChild(element);
+    
+    await customElements.whenDefined('test-component');
+    
+    element.setAttribute('title', 'Test Title');
+    await new Promise(resolve => setTimeout(resolve, 50));
+    
+    const component = element.querySelector('[data-testid="test-component"]');
+    expect(component?.getAttribute('data-title')).toBe('Test Title');
+  });
+
+  test('should clean up on disconnect', async () => {
+    const element = document.createElement('test-component');
+    document.body.appendChild(element);
+    
+    await customElements.whenDefined('test-component');
+    
+    const component = element._closureComponent;
+    const disposeSpy = jest.spyOn(component, 'dispose');
+    
+    element.remove();
+    await new Promise(resolve => setTimeout(resolve, 50));
+    
+    expect(disposeSpy).toHaveBeenCalled();
+  });
+});
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Use kebab-case for custom element names">
+    Custom element names must contain a hyphen and be lowercase:
+
+    ```typescript
+    // Good
+    defineClosureElement('user-profile', UserProfile);
+    defineClosureElement('data-table', DataTable);
+
+    // Bad
+    defineClosureElement('userprofile', UserProfile);  // No hyphen
+    defineClosureElement('UserProfile', UserProfile);  // Not lowercase
+    ```
+  </Accordion>
+
+  <Accordion title="Enable Shadow DOM for style isolation">
+    Use Shadow DOM when you need CSS encapsulation:
+
+    ```typescript
+    defineClosureElement('styled-component', StyledComponent, {
+      shadow: true  // Styles won't leak out or in
+    });
+    ```
+  </Accordion>
+
+  <Accordion title="Declare all reactive attributes">
+    List all attributes that should trigger updates:
+
+    ```typescript
+    defineClosureElement('reactive-component', ReactiveComponent, {
+      observedAttributes: ['title', 'active', 'count']
+    });
+    ```
+  </Accordion>
+
+  <Accordion title="Use composed events for Shadow DOM">
+    If using Shadow DOM, make sure custom events can bubble out:
+
+    ```typescript
+    const event = new CustomEvent('my-event', {
+      bubbles: true,
+      composed: true  // Crosses shadow boundary
+    });
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Browser Support
+
+<Info>
+  Web Components are supported in all modern browsers:
+  - Chrome 67+
+  - Firefox 63+
+  - Safari 10.1+
+  - Edge 79+
+
+  For older browsers, use the [Web Components polyfills](https://github.com/webcomponents/polyfills).
+</Info>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Node.js Support" icon="node-js" href="/platforms/nodejs">
+    Server-side rendering for Closure components
+  </Card>
+  <Card title="Component Basics" icon="cube" href="/core/components">
+    Learn about Closure Next components
+  </Card>
+</CardGroup>

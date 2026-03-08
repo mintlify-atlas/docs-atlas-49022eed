@@ -1,0 +1,565 @@
+---
+title: "Performance Guide"
+description: "Optimize your Closure Next applications for maximum performance and efficiency"
+---
+
+# Performance Optimization
+
+Closure Next is designed for high performance out of the box, but understanding optimization strategies can help you build even faster applications.
+
+## Bundle Size Optimization
+
+### Tree Shaking
+
+Closure Next is fully tree-shakeable. Import only what you need:
+
+<Tabs>
+  <Tab title="Optimal">
+    ```typescript
+    // Import specific exports - tree-shakeable
+    import { Component } from '@closure-next/core/component';
+    import { DOMHelper } from '@closure-next/core/dom';
+    import { toCamelCase } from '@closure-next/core/utils/string';
+    ```
+  </Tab>
+  <Tab title="Avoid">
+    ```typescript
+    // Importing everything - may bundle unused code
+    import * as ClosureNext from '@closure-next/core';
+    ```
+  </Tab>
+</Tabs>
+
+<Tip>
+  Use path imports like `@closure-next/core/component` instead of importing from the main entry point to ensure optimal tree shaking.
+</Tip>
+
+### Dynamic Imports
+
+Use the `Lazy` class for code splitting:
+
+```typescript
+import { Lazy } from '@closure-next/core';
+
+// Load component on demand
+const lazyComponent = new Lazy(async () => {
+  const { HeavyComponent } = await import('./HeavyComponent');
+  return new HeavyComponent();
+});
+
+// Only loads when needed
+const component = await lazyComponent.get();
+```
+
+### Bundle Analysis
+
+<Tabs>
+  <Tab title="Webpack">
+    ```javascript
+    // webpack.config.js
+    const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer');
+
+    module.exports = {
+      plugins: [
+        new BundleAnalyzerPlugin()
+      ]
+    };
+    ```
+  </Tab>
+  <Tab title="Vite">
+    ```javascript
+    // vite.config.js
+    import { visualizer } from 'rollup-plugin-visualizer';
+
+    export default {
+      plugins: [
+        visualizer({ open: true })
+      ]
+    };
+    ```
+  </Tab>
+  <Tab title="Rollup">
+    ```javascript
+    // rollup.config.js
+    import { visualizer } from 'rollup-plugin-visualizer';
+
+    export default {
+      plugins: [
+        visualizer()
+      ]
+    };
+    ```
+  </Tab>
+</Tabs>
+
+## DOM Performance
+
+### Efficient Rendering
+
+Minimize DOM operations by batching updates:
+
+<Tabs>
+  <Tab title="Inefficient">
+    ```typescript
+    // Multiple renders - inefficient
+    for (let i = 0; i < items.length; i++) {
+      const child = new ItemComponent(domHelper);
+      await child.setState({ value: items[i] });
+      await child.render(container);
+    }
+    ```
+  </Tab>
+  <Tab title="Efficient">
+    ```typescript
+    // Batch creation, single render pass
+    const children = items.map(item => {
+      const child = new ItemComponent(domHelper);
+      return child;
+    });
+
+    // Set state before rendering
+    await Promise.all(
+      children.map((child, i) => child.setState({ value: items[i] }))
+    );
+
+    // Render all at once
+    const fragment = document.createDocumentFragment();
+    await Promise.all(
+      children.map(child => child.render(fragment as any))
+    );
+    container.appendChild(fragment);
+    ```
+  </Tab>
+</Tabs>
+
+### Query Selector Optimization
+
+Use efficient selectors with DOMHelper:
+
+```typescript
+import { DOMHelper } from '@closure-next/core';
+
+const domHelper = new DOMHelper();
+
+// Fast - ID lookup
+const byId = domHelper.getElementById('myId');
+
+// Fast - class lookup
+const byClass = domHelper.getElementsByClassName('myClass');
+
+// Slower - complex selector
+const complex = domHelper.querySelector('.parent > .child[data-value="1"]');
+```
+
+<Tip>
+  Prefer `getElementById` and `getElementsByClassName` over `querySelector` for better performance.
+</Tip>
+
+## Memory Management
+
+### Component Disposal
+
+Always dispose components when done:
+
+```typescript
+class MyComponent extends Component {
+  private intervalId?: number;
+
+  async render(container: HTMLElement): Promise<void> {
+    await super.render(container);
+    this.intervalId = window.setInterval(() => {
+      this.update();
+    }, 1000);
+  }
+
+  dispose(): void {
+    if (this.isDisposed()) return;
+    
+    // Clean up timers
+    if (this.intervalId !== undefined) {
+      clearInterval(this.intervalId);
+    }
+    
+    super.dispose();
+  }
+}
+```
+
+### Event Listener Cleanup
+
+The EventTarget automatically cleans up listeners on disposal:
+
+```typescript
+import { EventTarget, EventType } from '@closure-next/core';
+
+class MyEventEmitter extends EventTarget {
+  setupListeners(): void {
+    this.addEventListener(EventType.STATECHANGE, this.handleChange);
+    // Automatically removed when dispose() is called
+  }
+
+  dispose(): void {
+    super.dispose(); // Clears all listeners
+  }
+}
+```
+
+### Avoiding Memory Leaks
+
+<Accordion title="Common Memory Leak Patterns">
+  **Problem**: Not removing DOM event listeners
+  ```typescript
+  // BAD - listener never removed
+  this.element?.addEventListener('click', handler);
+  ```
+
+  **Solution**: Remove in dispose
+  ```typescript
+  private clickHandler = () => this.handleClick();
+
+  async render(container: HTMLElement): Promise<void> {
+    await super.render(container);
+    this.element?.addEventListener('click', this.clickHandler);
+  }
+
+  dispose(): void {
+    this.element?.removeEventListener('click', this.clickHandler);
+    super.dispose();
+  }
+  ```
+</Accordion>
+
+## Caching Strategies
+
+Closure Next includes a built-in cache manager:
+
+```typescript
+import { CacheManager } from '@closure-next/core/cache';
+
+class DataService {
+  private cache = new CacheManager<any>(100); // Max 100 items
+
+  async fetchData(id: string): Promise<any> {
+    // Check cache first
+    const cached = this.cache.get(id);
+    if (cached) {
+      return cached;
+    }
+
+    // Fetch and cache
+    const data = await fetch(`/api/data/${id}`).then(r => r.json());
+    this.cache.set(id, data);
+    return data;
+  }
+
+  clearCache(): void {
+    this.cache.clear();
+  }
+}
+```
+
+<Tip>
+  The CacheManager uses LRU (Least Recently Used) eviction when the cache is full.
+</Tip>
+
+## State Update Optimization
+
+### Debouncing State Updates
+
+```typescript
+import { Component, DOMHelper } from '@closure-next/core';
+
+class SearchComponent extends Component {
+  private debounceTimer?: number;
+
+  constructor() {
+    super(new DOMHelper());
+  }
+
+  handleInput(value: string): void {
+    // Clear previous timer
+    if (this.debounceTimer !== undefined) {
+      clearTimeout(this.debounceTimer);
+    }
+
+    // Debounce state update
+    this.debounceTimer = window.setTimeout(() => {
+      this.setState({ searchQuery: value });
+    }, 300);
+  }
+
+  dispose(): void {
+    if (this.debounceTimer !== undefined) {
+      clearTimeout(this.debounceTimer);
+    }
+    super.dispose();
+  }
+}
+```
+
+### Shallow State Comparison
+
+The Component class already implements shallow comparison:
+
+```typescript
+// From component.ts source
+async setState(state: ComponentState): Promise<void> {
+  const oldState = { ...this.state };
+  this.state = { ...oldState, ...state };
+  
+  // Only re-render if state actually changed
+  if (JSON.stringify(oldState) !== JSON.stringify(this.state)) {
+    this.emit(EventType.STATECHANGE, { ...this.state });
+    // Re-render
+  }
+}
+```
+
+## Async Performance
+
+### Parallel Operations
+
+<Tabs>
+  <Tab title="Sequential (Slow)">
+    ```typescript
+    // Each operation waits for the previous one
+    await component1.render(container);
+    await component2.render(container);
+    await component3.render(container);
+    // Total time: sum of all operations
+    ```
+  </Tab>
+  <Tab title="Parallel (Fast)">
+    ```typescript
+    // All operations run simultaneously
+    await Promise.all([
+      component1.render(container),
+      component2.render(container),
+      component3.render(container)
+    ]);
+    // Total time: slowest operation
+    ```
+  </Tab>
+</Tabs>
+
+### Promise Optimization
+
+```typescript
+import { Component, DOMHelper } from '@closure-next/core';
+
+class OptimizedComponent extends Component {
+  async loadData(): Promise<void> {
+    // Start all async operations at once
+    const [userData, settings, content] = await Promise.all([
+      fetch('/api/user').then(r => r.json()),
+      fetch('/api/settings').then(r => r.json()),
+      fetch('/api/content').then(r => r.json())
+    ]);
+
+    // Update state once with all data
+    await this.setState({ userData, settings, content });
+  }
+}
+```
+
+## Build Configuration
+
+### TypeScript Optimization
+
+```json
+// tsconfig.json
+{
+  "compilerOptions": {
+    "target": "ES2015",        // Modern browsers only
+    "module": "ESNext",        // ES modules for tree-shaking
+    "strict": true,            // Catch errors early
+    "skipLibCheck": true,      // Faster compilation
+    "declaration": true,       // Generate .d.ts files
+    "sourceMap": false,        // Disable in production
+    "removeComments": true,    // Smaller bundles
+    "importHelpers": true      // Reduce helper duplication
+  }
+}
+```
+
+### Production Build Tips
+
+<AccordionGroup>
+  <Accordion title="Webpack Configuration" icon="cube">
+    ```javascript
+    // webpack.config.js
+    module.exports = {
+      mode: 'production',
+      optimization: {
+        usedExports: true,        // Tree shaking
+        minimize: true,           // Minification
+        splitChunks: {
+          chunks: 'all',          // Code splitting
+          cacheGroups: {
+            vendor: {
+              test: /[\\/]node_modules[\\/]/,
+              name: 'vendors',
+              chunks: 'all'
+            }
+          }
+        }
+      }
+    };
+    ```
+  </Accordion>
+
+  <Accordion title="Vite Configuration" icon="bolt">
+    ```javascript
+    // vite.config.js
+    export default {
+      build: {
+        target: 'es2015',
+        minify: 'terser',
+        terserOptions: {
+          compress: {
+            drop_console: true,   // Remove console.log
+            drop_debugger: true
+          }
+        },
+        rollupOptions: {
+          output: {
+            manualChunks: {
+              'closure-next': ['@closure-next/core']
+            }
+          }
+        }
+      }
+    };
+    ```
+  </Accordion>
+
+  <Accordion title="Rollup Configuration" icon="package">
+    ```javascript
+    // rollup.config.js
+    import { terser } from 'rollup-plugin-terser';
+
+    export default {
+      plugins: [
+        terser({
+          compress: {
+            pure_getters: true,
+            unsafe: true,
+            unsafe_comps: true
+          }
+        })
+      ],
+      output: {
+        format: 'es',
+        compact: true
+      }
+    };
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Performance Monitoring
+
+### Measuring Render Performance
+
+```typescript
+import { Component, DOMHelper } from '@closure-next/core';
+
+class MonitoredComponent extends Component {
+  async render(container: HTMLElement): Promise<void> {
+    const startTime = performance.now();
+    
+    await super.render(container);
+    
+    const endTime = performance.now();
+    console.log(`Render time: ${endTime - startTime}ms`);
+    
+    // Report to analytics
+    if (typeof window !== 'undefined' && 'PerformanceObserver' in window) {
+      performance.mark('component-render-end');
+    }
+  }
+}
+```
+
+### Memory Profiling
+
+```typescript
+if (typeof window !== 'undefined' && 'performance' in window) {
+  const component = new MyComponent(new DOMHelper());
+  
+  // Check initial memory
+  const before = (performance as any).memory?.usedJSHeapSize;
+  
+  await component.render(document.body);
+  
+  // Check after render
+  const after = (performance as any).memory?.usedJSHeapSize;
+  
+  console.log(`Memory used: ${((after - before) / 1024).toFixed(2)} KB`);
+  
+  // Clean up
+  component.dispose();
+}
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Use Lazy Loading" icon="hourglass">
+    Load components and modules on demand with the `Lazy` class
+  </Card>
+  <Card title="Batch DOM Updates" icon="layer-group">
+    Group multiple DOM operations to minimize reflows
+  </Card>
+  <Card title="Dispose Properly" icon="trash">
+    Always call `dispose()` to prevent memory leaks
+  </Card>
+  <Card title="Optimize State" icon="bolt">
+    Debounce frequent state updates and use shallow comparison
+  </Card>
+</CardGroup>
+
+## Performance Checklist
+
+<AccordionGroup>
+  <Accordion title="Development Phase" icon="code">
+    - [ ] Use specific imports for tree-shaking
+    - [ ] Implement lazy loading for large components
+    - [ ] Add proper disposal in all components
+    - [ ] Debounce frequent state updates
+    - [ ] Use efficient DOM selectors
+  </Accordion>
+
+  <Accordion title="Build Phase" icon="hammer">
+    - [ ] Enable tree-shaking in bundler config
+    - [ ] Configure code splitting
+    - [ ] Enable minification and compression
+    - [ ] Remove console.log statements
+    - [ ] Analyze bundle size
+  </Accordion>
+
+  <Accordion title="Production Phase" icon="rocket">
+    - [ ] Monitor render performance
+    - [ ] Profile memory usage
+    - [ ] Check for memory leaks
+    - [ ] Measure bundle load time
+    - [ ] Test on slower devices
+  </Accordion>
+</AccordionGroup>
+
+## Additional Resources
+
+<CardGroup cols={2}>
+  <Card title="TypeScript Guide" icon="code" href="/guides/typescript">
+    Learn TypeScript patterns for better performance
+  </Card>
+  <Card title="Build Tools" icon="wrench" href="/build-tools/webpack">
+    Configure your build tool for optimal output
+  </Card>
+  <Card title="API Reference" icon="book" href="/api/component">
+    Deep dive into component lifecycle and optimization
+  </Card>
+  <Card title="Testing Guide" icon="vial" href="/advanced/testing">
+    Performance testing strategies
+  </Card>
+</CardGroup>

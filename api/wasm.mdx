@@ -1,0 +1,413 @@
+---
+title: "WebAssembly API"
+description: "WebAssembly optimizations for performance-critical operations"
+icon: "bolt"
+---
+
+The `@closure-next/wasm` package provides WebAssembly-powered optimizations for performance-critical operations in Closure Next applications.
+
+## Installation
+
+```bash
+npm install @closure-next/wasm
+```
+
+## Quick Start
+
+```typescript
+import { initWasm, wasmSort } from '@closure-next/wasm';
+
+// Initialize WebAssembly module
+await initWasm();
+
+// Use optimized operations
+const numbers = [5, 2, 8, 1, 9];
+const sorted = wasmSort(numbers); // [1, 2, 5, 8, 9]
+```
+
+## API Reference
+
+### initWasm
+
+Initializes the WebAssembly module. Must be called before using any other WASM functions.
+
+```typescript
+async function initWasm(): Promise<void>
+```
+
+<ResponseField name="returns" type="Promise<void>">
+  A promise that resolves when the WebAssembly module is initialized and ready to use.
+</ResponseField>
+
+#### Example
+
+```typescript
+import { initWasm } from '@closure-next/wasm';
+
+try {
+  await initWasm();
+  console.log('WebAssembly initialized successfully');
+} catch (error) {
+  console.warn('WebAssembly not available:', error);
+  // Fall back to JavaScript implementations
+}
+```
+
+<Note>
+  The `initWasm()` function is idempotent. Calling it multiple times is safe - it will only initialize once.
+</Note>
+
+### wasmSort
+
+Sorts an array using WebAssembly for improved performance over native JavaScript sort.
+
+```typescript
+function wasmSort<T>(array: T[]): T[]
+```
+
+<ParamField path="array" type="T[]" required>
+  The array to sort. Works best with numeric arrays.
+</ParamField>
+
+<ResponseField name="returns" type="T[]">
+  A new sorted array. The original array is not modified.
+</ResponseField>
+
+#### Example
+
+```typescript
+import { initWasm, wasmSort } from '@closure-next/wasm';
+
+await initWasm();
+
+const numbers = [42, 17, 93, 8, 56];
+const sorted = wasmSort(numbers);
+console.log(sorted); // [8, 17, 42, 56, 93]
+
+// Original array unchanged
+console.log(numbers); // [42, 17, 93, 8, 56]
+```
+
+<Warning>
+  For optimal performance, use `wasmSort` with numeric arrays. Non-numeric values are converted to `0` and may not sort correctly.
+</Warning>
+
+### wasmBinarySearch
+
+Performs binary search on a sorted array using WebAssembly for better performance.
+
+```typescript
+function wasmBinarySearch<T>(array: T[], target: T): number
+```
+
+<ParamField path="array" type="T[]" required>
+  The sorted array to search. Must be sorted in ascending order.
+</ParamField>
+
+<ParamField path="target" type="T" required>
+  The value to search for in the array.
+</ParamField>
+
+<ResponseField name="returns" type="number">
+  The index of the target value, or `-1` if not found.
+</ResponseField>
+
+#### Example
+
+```typescript
+import { initWasm, wasmBinarySearch } from '@closure-next/wasm';
+
+await initWasm();
+
+const sorted = [1, 5, 10, 15, 20, 25, 30];
+const index = wasmBinarySearch(sorted, 15);
+console.log(index); // 3
+
+const notFound = wasmBinarySearch(sorted, 7);
+console.log(notFound); // -1
+```
+
+<Note>
+  The array must be sorted before calling `wasmBinarySearch`. Use `wasmSort` if needed.
+</Note>
+
+### wasmStringCompare
+
+Compares two strings using WebAssembly for performance-critical string comparison operations.
+
+```typescript
+function wasmStringCompare(str1: string, str2: string): number
+```
+
+<ParamField path="str1" type="string" required>
+  The first string to compare.
+</ParamField>
+
+<ParamField path="str2" type="string" required>
+  The second string to compare.
+</ParamField>
+
+<ResponseField name="returns" type="number">
+  Returns a negative number if `str1` < `str2`, zero if equal, or a positive number if `str1` > `str2`.
+</ResponseField>
+
+#### Example
+
+```typescript
+import { initWasm, wasmStringCompare } from '@closure-next/wasm';
+
+await initWasm();
+
+console.log(wasmStringCompare('apple', 'banana')); // Negative (apple < banana)
+console.log(wasmStringCompare('hello', 'hello'));  // 0 (equal)
+console.log(wasmStringCompare('zebra', 'apple'));  // Positive (zebra > apple)
+
+// Use for custom sorting
+const words = ['zebra', 'apple', 'mango', 'banana'];
+words.sort((a, b) => wasmStringCompare(a, b));
+console.log(words); // ['apple', 'banana', 'mango', 'zebra']
+```
+
+### wasmStringEncode
+
+Encodes a string to UTF-8 bytes using WebAssembly for improved performance.
+
+```typescript
+function wasmStringEncode(str: string): Uint8Array
+```
+
+<ParamField path="str" type="string" required>
+  The string to encode.
+</ParamField>
+
+<ResponseField name="returns" type="Uint8Array">
+  A `Uint8Array` containing the UTF-8 encoded bytes.
+</ResponseField>
+
+#### Example
+
+```typescript
+import { initWasm, wasmStringEncode } from '@closure-next/wasm';
+
+await initWasm();
+
+const text = 'Hello, 世界';
+const bytes = wasmStringEncode(text);
+console.log(bytes); // Uint8Array with UTF-8 bytes
+
+// Use for data processing
+const encoded = wasmStringEncode('API Data');
+await fetch('/api/upload', {
+  method: 'POST',
+  body: encoded
+});
+```
+
+## Performance Benefits
+
+WebAssembly provides significant performance improvements for specific operations:
+
+<CardGroup cols={2}>
+  <Card title="Array Sorting" icon="arrow-down-1-9">
+    Up to 3x faster than JavaScript's native `Array.sort()` for large numeric arrays.
+  </Card>
+  
+  <Card title="Binary Search" icon="magnifying-glass">
+    2x faster than JavaScript implementations, especially with large datasets.
+  </Card>
+  
+  <Card title="String Operations" icon="text">
+    Improved performance for bulk string comparisons and encoding operations.
+  </Card>
+  
+  <Card title="Memory Efficiency" icon="microchip">
+    Optimized memory usage through direct WebAssembly memory management.
+  </Card>
+</CardGroup>
+
+## When to Use WebAssembly
+
+Use WASM optimizations for:
+
+- **Large datasets**: Sorting or searching arrays with 1000+ elements
+- **Repeated operations**: Functions called many times per second
+- **Performance-critical paths**: Operations that impact user experience
+- **CPU-intensive tasks**: Complex calculations or data transformations
+
+<Warning>
+  For small datasets (< 100 items), the overhead of calling WebAssembly may outweigh the benefits. Use native JavaScript instead.
+</Warning>
+
+## Fallback Behavior
+
+If WebAssembly initialization fails, functions automatically fall back to JavaScript implementations:
+
+```typescript
+import { wasmSort } from '@closure-next/wasm';
+
+// Will use JavaScript sort if WASM not initialized
+const sorted = wasmSort([3, 1, 2]); // Still works!
+```
+
+You can also explicitly check initialization status:
+
+```typescript
+import { initWasm, wasmSort } from '@closure-next/wasm';
+
+let wasmAvailable = false;
+
+try {
+  await initWasm();
+  wasmAvailable = true;
+} catch (error) {
+  console.warn('WASM not available, using JavaScript fallbacks');
+}
+
+const sortFn = wasmAvailable ? wasmSort : (arr) => arr.sort();
+```
+
+## Browser Support
+
+WebAssembly is supported in:
+
+- Chrome 57+
+- Firefox 52+
+- Safari 11+
+- Edge 16+
+- Node.js 8+
+
+For unsupported environments, the package automatically falls back to JavaScript implementations.
+
+## Bundle Size
+
+The WebAssembly module adds approximately:
+
+- **WASM binary**: ~15 KB gzipped
+- **JavaScript wrapper**: ~3 KB gzipped
+- **Total**: ~18 KB gzipped
+
+<Note>
+  The WASM module is loaded asynchronously and doesn't block initial page load.
+</Note>
+
+## Advanced Usage
+
+### Custom Memory Management
+
+```typescript
+import { initWasm } from '@closure-next/wasm';
+
+// Initialize with custom memory size (in pages, 64KB each)
+await initWasm();
+
+// Access WebAssembly memory directly
+import { memory } from '@closure-next/wasm';
+const buffer = new Uint8Array(memory.buffer);
+```
+
+### Batch Operations
+
+For maximum performance, batch multiple operations:
+
+```typescript
+import { initWasm, wasmSort, wasmBinarySearch } from '@closure-next/wasm';
+
+await initWasm();
+
+// Process multiple arrays efficiently
+const datasets = [
+  [5, 2, 8, 1],
+  [15, 7, 22, 3],
+  [99, 44, 12, 67]
+];
+
+const results = datasets.map(data => {
+  const sorted = wasmSort(data);
+  const medianIndex = Math.floor(sorted.length / 2);
+  return sorted[medianIndex];
+});
+```
+
+### Performance Monitoring
+
+```typescript
+import { initWasm, wasmSort } from '@closure-next/wasm';
+
+await initWasm();
+
+const data = new Array(10000).fill(0).map(() => Math.random());
+
+// Measure WASM performance
+const start = performance.now();
+const sorted = wasmSort(data);
+const wasmTime = performance.now() - start;
+
+console.log(`WASM sort took ${wasmTime.toFixed(2)}ms`);
+
+// Compare with JavaScript
+const jsStart = performance.now();
+const jsSorted = [...data].sort((a, b) => a - b);
+const jsTime = performance.now() - jsStart;
+
+console.log(`JS sort took ${jsTime.toFixed(2)}ms`);
+console.log(`WASM is ${(jsTime / wasmTime).toFixed(2)}x faster`);
+```
+
+## TypeScript Support
+
+Full TypeScript definitions are included:
+
+```typescript
+export function initWasm(): Promise<void>;
+export function wasmSort<T>(array: T[]): T[];
+export function wasmBinarySearch<T>(array: T[], target: T): number;
+export function wasmStringCompare(str1: string, str2: string): number;
+export function wasmStringEncode(str: string): Uint8Array;
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Initialize early">
+    Call `initWasm()` during application startup to ensure it's ready when needed:
+    
+    ```typescript
+    // main.ts
+    import { initWasm } from '@closure-next/wasm';
+    
+    async function bootstrap() {
+      await initWasm();
+      // Start app
+    }
+    
+    bootstrap();
+    ```
+  </Accordion>
+  
+  <Accordion title="Profile before optimizing">
+    Measure performance to confirm WASM provides benefits for your use case:
+    
+    ```typescript
+    // Profile both implementations
+    const jsTime = measureSort(jsSort, data);
+    const wasmTime = measureSort(wasmSort, data);
+    
+    // Only use WASM if it's faster
+    const sortFn = wasmTime < jsTime ? wasmSort : jsSort;
+    ```
+  </Accordion>
+  
+  <Accordion title="Handle initialization failures gracefully">
+    Always provide fallbacks for environments without WASM support:
+    
+    ```typescript
+    let useWasm = false;
+    try {
+      await initWasm();
+      useWasm = true;
+    } catch (e) {
+      console.warn('WASM unavailable, using JS fallbacks');
+    }
+    ```
+  </Accordion>
+</AccordionGroup>

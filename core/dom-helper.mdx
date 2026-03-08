@@ -1,0 +1,470 @@
+---
+title: 'DOMHelper Class'
+description: 'Cross-environment DOM manipulation utilities'
+---
+
+## Overview
+
+The `DOMHelper` class provides a unified interface for DOM manipulation that works in both browser and server-side environments. It wraps the native DOM API with error handling and environment detection.
+
+## Class Definition
+
+```typescript
+import { DOMHelper } from '@closure/core';
+
+class DOMHelper {
+  private document: Document;
+}
+```
+
+## Constructor
+
+```typescript
+new DOMHelper(document?: Document)
+```
+
+<ParamField path="document" type="Document">
+  Optional Document instance. If not provided, uses `window.document` in browser environments.
+</ParamField>
+
+<Warning>
+In server-side environments (where `window` is undefined), you must provide a Document instance (e.g., from jsdom or happy-dom).
+</Warning>
+
+### Examples
+
+<Tabs>
+  <Tab title="Browser">
+    ```typescript
+    // Uses window.document automatically
+    const domHelper = new DOMHelper();
+    ```
+  </Tab>
+  
+  <Tab title="Node.js with jsdom">
+    ```typescript
+    import { JSDOM } from 'jsdom';
+    
+    const dom = new JSDOM('<!DOCTYPE html>');
+    const domHelper = new DOMHelper(dom.window.document);
+    ```
+  </Tab>
+  
+  <Tab title="Node.js with happy-dom">
+    ```typescript
+    import { Window } from 'happy-dom';
+    
+    const window = new Window();
+    const domHelper = new DOMHelper(window.document);
+    ```
+  </Tab>
+</Tabs>
+
+## Element Creation
+
+### createElement()
+
+Creates a new HTML element.
+
+```typescript
+createElement(tagName: string): HTMLElement
+```
+
+<ParamField path="tagName" type="string" required>
+  The HTML tag name (e.g., 'div', 'span', 'button')
+</ParamField>
+
+**Returns:** A new HTMLElement instance
+
+**Throws:**
+- Error if document is not initialized
+- Error if tag name is invalid
+
+#### Example
+
+```typescript
+const domHelper = new DOMHelper();
+
+const div = domHelper.createElement('div');
+const button = domHelper.createElement('button');
+const input = domHelper.createElement('input');
+```
+
+### createTextNode()
+
+Creates a text node.
+
+```typescript
+createTextNode(text: string): Text
+```
+
+<ParamField path="text" type="string" required>
+  The text content
+</ParamField>
+
+**Returns:** A new Text node
+
+#### Example
+
+```typescript
+const domHelper = new DOMHelper();
+
+const div = domHelper.createElement('div');
+const text = domHelper.createTextNode('Hello, world!');
+div.appendChild(text);
+```
+
+## Element Selection
+
+### getElementById()
+
+Finds an element by its ID.
+
+```typescript
+getElementById(id: string): Element | null
+```
+
+<ParamField path="id" type="string" required>
+  The element ID to search for
+</ParamField>
+
+**Returns:** The element with the specified ID, or `null` if not found
+
+### getElementsByTagName()
+
+Finds all elements with a specific tag name.
+
+```typescript
+getElementsByTagName(tagName: string): HTMLCollectionOf<Element>
+```
+
+<ParamField path="tagName" type="string" required>
+  The tag name to search for
+</ParamField>
+
+**Returns:** A live HTMLCollection of elements
+
+### getElementsByClassName()
+
+Finds all elements with a specific class name.
+
+```typescript
+getElementsByClassName(className: string): HTMLCollectionOf<Element>
+```
+
+<ParamField path="className" type="string" required>
+  The class name to search for
+</ParamField>
+
+**Returns:** A live HTMLCollection of elements
+
+### querySelector()
+
+Finds the first element matching a CSS selector.
+
+```typescript
+querySelector(selector: string): Element | null
+```
+
+<ParamField path="selector" type="string" required>
+  CSS selector string
+</ParamField>
+
+**Returns:** The first matching element, or `null` if none found
+
+### querySelectorAll()
+
+Finds all elements matching a CSS selector.
+
+```typescript
+querySelectorAll(selector: string): NodeListOf<Element>
+```
+
+<ParamField path="selector" type="string" required>
+  CSS selector string
+</ParamField>
+
+**Returns:** A static NodeList of matching elements
+
+### Selection Examples
+
+```typescript
+const domHelper = new DOMHelper();
+
+// By ID
+const header = domHelper.getElementById('header');
+
+// By tag name
+const divs = domHelper.getElementsByTagName('div');
+
+// By class name
+const buttons = domHelper.getElementsByClassName('btn');
+
+// By CSS selector (single)
+const firstButton = domHelper.querySelector('.btn.primary');
+
+// By CSS selector (all)
+const allButtons = domHelper.querySelectorAll('button[type="submit"]');
+```
+
+## Attribute Methods
+
+### setAttribute()
+
+Sets an attribute on an element.
+
+```typescript
+setAttribute(element: Element, name: string, value: string): void
+```
+
+<ParamField path="element" type="Element" required>
+  The target element
+</ParamField>
+
+<ParamField path="name" type="string" required>
+  The attribute name
+</ParamField>
+
+<ParamField path="value" type="string" required>
+  The attribute value
+</ParamField>
+
+### getAttribute()
+
+Gets an attribute value from an element.
+
+```typescript
+getAttribute(element: Element, name: string): string | null
+```
+
+<ParamField path="element" type="Element" required>
+  The target element
+</ParamField>
+
+<ParamField path="name" type="string" required>
+  The attribute name
+</ParamField>
+
+**Returns:** The attribute value, or `null` if the attribute doesn't exist
+
+### removeAttribute()
+
+Removes an attribute from an element.
+
+```typescript
+removeAttribute(element: Element, name: string): void
+```
+
+<ParamField path="element" type="Element" required>
+  The target element
+</ParamField>
+
+<ParamField path="name" type="string" required>
+  The attribute name to remove
+</ParamField>
+
+### Attribute Examples
+
+```typescript
+const domHelper = new DOMHelper();
+const input = domHelper.createElement('input');
+
+// Set attributes
+domHelper.setAttribute(input, 'type', 'text');
+domHelper.setAttribute(input, 'placeholder', 'Enter name');
+domHelper.setAttribute(input, 'required', 'true');
+
+// Get attribute
+const type = domHelper.getAttribute(input, 'type'); // 'text'
+
+// Remove attribute
+domHelper.removeAttribute(input, 'required');
+```
+
+## DOM Manipulation
+
+### appendChild()
+
+Appends a child node to a parent node.
+
+```typescript
+appendChild(parent: Node, child: Node): void
+```
+
+<ParamField path="parent" type="Node" required>
+  The parent node
+</ParamField>
+
+<ParamField path="child" type="Node" required>
+  The child node to append
+</ParamField>
+
+### removeChild()
+
+Removes a child node from a parent node.
+
+```typescript
+removeChild(parent: Node, child: Node): void
+```
+
+<ParamField path="parent" type="Node" required>
+  The parent node
+</ParamField>
+
+<ParamField path="child" type="Node" required>
+  The child node to remove
+</ParamField>
+
+### insertBefore()
+
+Inserts a node before a reference node.
+
+```typescript
+insertBefore(parent: Node, newNode: Node, referenceNode: Node | null): void
+```
+
+<ParamField path="parent" type="Node" required>
+  The parent node
+</ParamField>
+
+<ParamField path="newNode" type="Node" required>
+  The node to insert
+</ParamField>
+
+<ParamField path="referenceNode" type="Node | null" required>
+  The node to insert before, or `null` to append at the end
+</ParamField>
+
+### replaceChild()
+
+Replaces a child node with a new node.
+
+```typescript
+replaceChild(parent: Node, newChild: Node, oldChild: Node): void
+```
+
+<ParamField path="parent" type="Node" required>
+  The parent node
+</ParamField>
+
+<ParamField path="newChild" type="Node" required>
+  The new node to insert
+</ParamField>
+
+<ParamField path="oldChild" type="Node" required>
+  The node to replace
+</ParamField>
+
+### Manipulation Examples
+
+```typescript
+const domHelper = new DOMHelper();
+
+// Create elements
+const container = domHelper.createElement('div');
+const header = domHelper.createElement('h1');
+const paragraph = domHelper.createElement('p');
+const footer = domHelper.createElement('footer');
+
+// Append child
+domHelper.appendChild(container, header);
+domHelper.appendChild(container, paragraph);
+
+// Insert before
+domHelper.insertBefore(container, footer, paragraph);
+// Result: container -> header -> footer -> paragraph
+
+// Replace child
+const newParagraph = domHelper.createElement('p');
+domHelper.replaceChild(container, newParagraph, paragraph);
+
+// Remove child
+domHelper.removeChild(container, footer);
+```
+
+## Complete Example
+
+Here's a complete example building a simple component structure:
+
+```typescript
+import { DOMHelper } from '@closure/core';
+
+const domHelper = new DOMHelper();
+
+// Create card structure
+const card = domHelper.createElement('div');
+domHelper.setAttribute(card, 'class', 'card');
+
+const cardHeader = domHelper.createElement('div');
+domHelper.setAttribute(cardHeader, 'class', 'card-header');
+
+const title = domHelper.createElement('h2');
+const titleText = domHelper.createTextNode('User Profile');
+domHelper.appendChild(title, titleText);
+domHelper.appendChild(cardHeader, title);
+
+const cardBody = domHelper.createElement('div');
+domHelper.setAttribute(cardBody, 'class', 'card-body');
+
+const name = domHelper.createElement('p');
+const nameText = domHelper.createTextNode('John Doe');
+domHelper.appendChild(name, nameText);
+
+const email = domHelper.createElement('p');
+const emailText = domHelper.createTextNode('john@example.com');
+domHelper.appendChild(email, emailText);
+
+domHelper.appendChild(cardBody, name);
+domHelper.appendChild(cardBody, email);
+
+// Assemble card
+domHelper.appendChild(card, cardHeader);
+domHelper.appendChild(card, cardBody);
+
+// Add to document
+const root = domHelper.getElementById('root');
+if (root) {
+  domHelper.appendChild(root, card);
+}
+```
+
+## Error Handling
+
+The DOMHelper includes built-in error handling:
+
+```typescript
+const domHelper = new DOMHelper();
+
+try {
+  // This will throw if the tag name is invalid
+  const element = domHelper.createElement('invalid-tag-123!');
+} catch (error) {
+  console.error('Failed to create element:', error);
+  // Error: Failed to create element with tag invalid-tag-123!: ...
+}
+```
+
+## Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Universal Rendering" icon="globe">
+    Use the same DOM API in both browser and Node.js environments
+  </Card>
+  
+  <Card title="Component Systems" icon="puzzle-piece">
+    Foundation for building component-based architectures
+  </Card>
+  
+  <Card title="Testing" icon="vial">
+    Create DOM structures in test environments without a real browser
+  </Card>
+  
+  <Card title="Server-Side Rendering" icon="server">
+    Generate HTML on the server with the same API used on the client
+  </Card>
+</CardGroup>
+
+## Related
+
+- [Component Class](/core/components) - Uses DOMHelper for DOM operations
+- [Server-Side Rendering](/essentials/ssr) - Using DOMHelper for SSR

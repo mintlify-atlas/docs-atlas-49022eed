@@ -1,0 +1,691 @@
+---
+title: 'Svelte Integration'
+description: 'Use Closure Next components seamlessly in your Svelte applications'
+icon: 'S'
+---
+
+# Svelte Integration
+
+The `@closure-next/svelte` package provides plug-and-play integration between Closure Next components and Svelte applications. Use your Closure components with Svelte's reactive stores, full TypeScript support, and automatic lifecycle management.
+
+## Installation
+
+<CodeGroup>
+```bash npm
+npm install @closure-next/svelte
+```
+
+```bash yarn
+yarn add @closure-next/svelte
+```
+
+```bash pnpm
+pnpm add @closure-next/svelte
+```
+</CodeGroup>
+
+## Quick Start
+
+### Basic Usage with createClosureStore
+
+Use the `createClosureStore` function to integrate Closure components:
+
+```svelte
+<script lang="ts">
+  import { createClosureStore } from '@closure-next/svelte';
+  import { Component, DOMHelper } from '@closure-next/core';
+
+  class MyButton extends Component {
+    constructor(domHelper?: DOMHelper) {
+      super(domHelper || new DOMHelper(document));
+    }
+
+    createDom(): void {
+      const element = document.createElement('button');
+      element.textContent = 'Click me';
+      element.onclick = () => alert('Clicked!');
+      this.element = element;
+    }
+  }
+
+  const { element, component } = createClosureStore(MyButton);
+</script>
+
+<div bind:this={$element}></div>
+```
+
+### With Props
+
+```svelte
+<script lang="ts">
+  import { createClosureStore } from '@closure-next/svelte';
+  import { Component, DOMHelper } from '@closure-next/core';
+
+  class Counter extends Component {
+    private count = 0;
+
+    setCount(count: number): void {
+      this.count = count;
+      if (this.element) {
+        this.element.textContent = `Count: ${this.count}`;
+      }
+    }
+
+    createDom(): void {
+      const element = document.createElement('div');
+      element.textContent = `Count: ${this.count}`;
+      this.element = element;
+    }
+  }
+
+  let count = 0;
+
+  const { element, setProps } = createClosureStore(Counter, {
+    props: { count }
+  });
+
+  function increment() {
+    count++;
+    setProps({ count });
+  }
+</script>
+
+<div>
+  <div bind:this={$element}></div>
+  <button on:click={increment}>Increment</button>
+</div>
+```
+
+## API Reference
+
+### `createClosureStore<T extends Component>`
+
+Creates a Svelte store that manages a Closure Next component instance.
+
+<ParamField path="ComponentClass" type="new (domHelper?: DOMHelper) => T" required>
+  The Closure Next component class to instantiate
+</ParamField>
+
+<ParamField path="options" type="ClosureComponentOptions<T>">
+  Configuration options for the component
+</ParamField>
+
+<ResponseField name="component" type="Writable<T | null>">
+  Svelte writable store containing the component instance
+</ResponseField>
+
+<ResponseField name="props" type="Writable<ComponentState>">
+  Svelte writable store containing the component props
+</ResponseField>
+
+<ResponseField name="element" type="Writable<HTMLElement | null>">
+  Svelte writable store containing the mounted element
+</ResponseField>
+
+<ResponseField name="setProps" type="(props: Partial<ComponentState>) => Promise<void>">
+  Function to update component props dynamically
+</ResponseField>
+
+#### Options
+
+```typescript
+interface ClosureComponentOptions<T extends Component> {
+  props?: ComponentState;
+  ssrOptions?: {
+    hydration?: 'client-only' | 'server-first' | 'progressive';
+    ssr?: boolean;
+  };
+  onMount?: (component: T) => void;
+  onDestroy?: (component: T) => void;
+  onError?: (error: Error) => void;
+}
+```
+
+<ParamField path="props" type="ComponentState">
+  Initial props to pass to the component
+</ParamField>
+
+<ParamField path="ssrOptions" type="object">
+  Server-side rendering options
+</ParamField>
+
+<ParamField path="onMount" type="(component: T) => void">
+  Callback invoked when the component is mounted
+</ParamField>
+
+<ParamField path="onDestroy" type="(component: T) => void">
+  Callback invoked when the component is destroyed
+</ParamField>
+
+<ParamField path="onError" type="(error: Error) => void">
+  Error handler for component initialization errors
+</ParamField>
+
+## Advanced Usage
+
+### Reactive Props
+
+Update component props reactively using Svelte stores:
+
+```svelte
+<script lang="ts">
+  import { writable } from 'svelte/store';
+  import { createClosureStore } from '@closure-next/svelte';
+  import { Component } from '@closure-next/core';
+
+  class TextField extends Component {
+    private value = '';
+
+    setValue(value: string): void {
+      this.value = value;
+      if (this.element) {
+        (this.element as HTMLInputElement).value = value;
+      }
+    }
+
+    createDom(): void {
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = this.value;
+      this.element = input;
+    }
+  }
+
+  const value = writable('');
+
+  const { element, setProps } = createClosureStore(TextField, {
+    props: { value: $value }
+  });
+
+  // Update Closure component when Svelte store changes
+  $: setProps({ value: $value });
+</script>
+
+<div>
+  <div bind:this={$element}></div>
+  <input bind:value={$value} placeholder="Update from Svelte" />
+</div>
+```
+
+### Lifecycle Callbacks
+
+Handle component lifecycle events:
+
+```svelte
+<script lang="ts">
+  import { createClosureStore } from '@closure-next/svelte';
+  import { Component } from '@closure-next/core';
+
+  class ManagedComponent extends Component {
+    private interval?: number;
+
+    createDom(): void {
+      const element = document.createElement('div');
+      element.textContent = 'Managed Component';
+      this.element = element;
+    }
+
+    startTimer(): void {
+      this.interval = window.setInterval(() => {
+        console.log('Tick');
+      }, 1000);
+    }
+
+    stopTimer(): void {
+      if (this.interval) {
+        clearInterval(this.interval);
+      }
+    }
+  }
+
+  const { element } = createClosureStore(ManagedComponent, {
+    onMount: (component) => {
+      console.log('Component mounted:', component);
+      component.startTimer();
+    },
+    onDestroy: (component) => {
+      console.log('Component destroyed:', component);
+      component.stopTimer();
+    },
+    onError: (error) => {
+      console.error('Component error:', error);
+    }
+  });
+</script>
+
+<div bind:this={$element}></div>
+```
+
+### Dynamic Props Updates
+
+Update props programmatically:
+
+```svelte
+<script lang="ts">
+  import { createClosureStore } from '@closure-next/svelte';
+  import { Component } from '@closure-next/core';
+
+  class DynamicComponent extends Component {
+    private title = '';
+    private subtitle = '';
+
+    setTitle(title: string): void {
+      this.title = title;
+      this.updateDisplay();
+    }
+
+    setSubtitle(subtitle: string): void {
+      this.subtitle = subtitle;
+      this.updateDisplay();
+    }
+
+    private updateDisplay(): void {
+      if (this.element) {
+        this.element.innerHTML = `
+          <h1>${this.title}</h1>
+          <h2>${this.subtitle}</h2>
+        `;
+      }
+    }
+
+    createDom(): void {
+      const element = document.createElement('div');
+      this.element = element;
+      this.updateDisplay();
+    }
+  }
+
+  let title = 'Hello';
+  let subtitle = 'World';
+
+  const { element, setProps } = createClosureStore(DynamicComponent, {
+    props: { title, subtitle }
+  });
+
+  async function updateProps() {
+    await setProps({ title, subtitle });
+  }
+</script>
+
+<div>
+  <div bind:this={$element}></div>
+  <input bind:value={title} on:input={updateProps} />
+  <input bind:value={subtitle} on:input={updateProps} />
+</div>
+```
+
+### TypeScript Support
+
+Full type safety with Svelte and Closure components:
+
+```svelte
+<script lang="ts">
+  import type { Component, ComponentState } from '@closure-next/core';
+  import { createClosureStore } from '@closure-next/svelte';
+
+  interface ButtonState extends ComponentState {
+    label: string;
+    onClick: () => void;
+    disabled?: boolean;
+  }
+
+  class TypedButton extends Component {
+    private state: ButtonState = {
+      label: '',
+      onClick: () => {}
+    };
+
+    setLabel(label: string): void {
+      this.state.label = label;
+      this.updateButton();
+    }
+
+    setOnClick(onClick: () => void): void {
+      this.state.onClick = onClick;
+      this.updateButton();
+    }
+
+    setDisabled(disabled: boolean): void {
+      this.state.disabled = disabled;
+      this.updateButton();
+    }
+
+    private updateButton(): void {
+      if (this.element) {
+        const button = this.element as HTMLButtonElement;
+        button.textContent = this.state.label;
+        button.disabled = this.state.disabled || false;
+        button.onclick = this.state.onClick;
+      }
+    }
+
+    createDom(): void {
+      const button = document.createElement('button');
+      this.element = button;
+      this.updateButton();
+    }
+  }
+
+  const buttonState: ButtonState = {
+    label: 'Submit',
+    onClick: () => console.log('Submitted'),
+    disabled: false
+  };
+
+  const { element } = createClosureStore<TypedButton>(TypedButton, {
+    props: buttonState
+  });
+</script>
+
+<div bind:this={$element}></div>
+```
+
+## Server-Side Rendering
+
+The Svelte integration supports server-side rendering:
+
+```typescript
+import { createClosureStore } from '@closure-next/svelte';
+import { Component, DOMHelper } from '@closure-next/core';
+
+class SSRComponent extends Component {
+  createDom(): void {
+    const element = document.createElement('div');
+    element.textContent = 'Server-rendered content';
+    this.element = element;
+  }
+}
+
+const { element } = createClosureStore(SSRComponent, {
+  ssrOptions: {
+    ssr: true,
+    hydration: 'server-first'
+  }
+});
+```
+
+### Hydration Strategies
+
+<CodeGroup>
+```svelte client-only
+<script>
+  const { element } = createClosureStore(MyComponent, {
+    ssrOptions: { hydration: 'client-only' }
+  });
+</script>
+```
+
+```svelte server-first
+<script>
+  const { element } = createClosureStore(MyComponent, {
+    ssrOptions: { hydration: 'server-first' }
+  });
+</script>
+```
+
+```svelte progressive
+<script>
+  const { element } = createClosureStore(MyComponent, {
+    ssrOptions: { hydration: 'progressive' }
+  });
+</script>
+```
+</CodeGroup>
+
+## Best Practices
+
+<Steps>
+  <Step title="Use Svelte stores">
+    Leverage Svelte's reactive stores to manage component state and props.
+  </Step>
+
+  <Step title="Implement lifecycle callbacks">
+    Use `onMount` and `onDestroy` callbacks to manage resources properly.
+  </Step>
+
+  <Step title="Define setter methods">
+    Implement setter methods on your Closure components to handle prop updates.
+  </Step>
+
+  <Step title="Use reactive statements">
+    Utilize Svelte's reactive statements (`$:`) to automatically update component props.
+  </Step>
+</Steps>
+
+## Common Patterns
+
+### Form Integration
+
+```svelte
+<script lang="ts">
+  import { createClosureStore } from '@closure-next/svelte';
+  import { Component } from '@closure-next/core';
+
+  class FormField extends Component {
+    private value = '';
+    private onChange?: (value: string) => void;
+
+    setValue(value: string): void {
+      this.value = value;
+      if (this.element) {
+        (this.element as HTMLInputElement).value = value;
+      }
+    }
+
+    setOnChange(onChange: (value: string) => void): void {
+      this.onChange = onChange;
+    }
+
+    createDom(): void {
+      const input = document.createElement('input');
+      input.value = this.value;
+      input.oninput = (e) => {
+        this.onChange?.((e.target as HTMLInputElement).value);
+      };
+      this.element = input;
+    }
+  }
+
+  let formData = {
+    name: '',
+    email: ''
+  };
+
+  const { element: nameElement } = createClosureStore(FormField, {
+    props: {
+      value: formData.name,
+      onChange: (value: string) => {
+        formData.name = value;
+      }
+    }
+  });
+
+  const { element: emailElement } = createClosureStore(FormField, {
+    props: {
+      value: formData.email,
+      onChange: (value: string) => {
+        formData.email = value;
+      }
+    }
+  });
+
+  function handleSubmit(e: Event) {
+    e.preventDefault();
+    console.log('Submit:', formData);
+  }
+</script>
+
+<form on:submit={handleSubmit}>
+  <div bind:this={$nameElement}></div>
+  <div bind:this={$emailElement}></div>
+  <button type="submit">Submit</button>
+</form>
+```
+
+### List Rendering
+
+```svelte
+<script lang="ts">
+  import { createClosureStore } from '@closure-next/svelte';
+  import { Component } from '@closure-next/core';
+
+  class ListItem extends Component {
+    private title = '';
+    private onClick?: () => void;
+
+    setTitle(title: string): void {
+      this.title = title;
+      if (this.element) {
+        this.element.textContent = title;
+      }
+    }
+
+    setOnClick(onClick: () => void): void {
+      this.onClick = onClick;
+    }
+
+    createDom(): void {
+      const div = document.createElement('div');
+      div.className = 'list-item';
+      div.textContent = this.title;
+      div.onclick = () => this.onClick?.();
+      this.element = div;
+    }
+  }
+
+  let items = [
+    { id: 1, title: 'Item 1' },
+    { id: 2, title: 'Item 2' },
+    { id: 3, title: 'Item 3' }
+  ];
+
+  function handleItemClick(id: number) {
+    console.log(`Item ${id} clicked`);
+  }
+</script>
+
+<div>
+  {#each items as item (item.id)}
+    {@const { element } = createClosureStore(ListItem, {
+      props: {
+        title: item.title,
+        onClick: () => handleItemClick(item.id)
+      }
+    })}
+    <div bind:this={$element}></div>
+  {/each}
+</div>
+```
+
+### Store Integration
+
+```svelte
+<script lang="ts">
+  import { writable, derived } from 'svelte/store';
+  import { createClosureStore } from '@closure-next/svelte';
+  import { Component } from '@closure-next/core';
+
+  class DataDisplay extends Component {
+    private data: string[] = [];
+
+    setData(data: string[]): void {
+      this.data = data;
+      this.updateDisplay();
+    }
+
+    private updateDisplay(): void {
+      if (this.element) {
+        this.element.innerHTML = this.data.map(item => `<div>${item}</div>`).join('');
+      }
+    }
+
+    createDom(): void {
+      const element = document.createElement('div');
+      this.element = element;
+      this.updateDisplay();
+    }
+  }
+
+  const rawData = writable(['Item 1', 'Item 2', 'Item 3']);
+  const processedData = derived(rawData, $data => 
+    $data.map(item => item.toUpperCase())
+  );
+
+  const { element, setProps } = createClosureStore(DataDisplay, {
+    props: { data: $processedData }
+  });
+
+  // Update component when store changes
+  $: setProps({ data: $processedData });
+</script>
+
+<div>
+  <div bind:this={$element}></div>
+  <button on:click={() => $rawData = [...$rawData, `Item ${$rawData.length + 1}`]}>
+    Add Item
+  </button>
+</div>
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Component not rendering">
+    Ensure you're properly binding the element:
+
+    ```svelte
+    <script>
+      const { element } = createClosureStore(MyComponent);
+    </script>
+
+    <!-- ✅ Correct -->
+    <div bind:this={$element}></div>
+
+    <!-- ❌ Incorrect -->
+    <div></div>
+    ```
+  </Accordion>
+
+  <Accordion title="Props not updating">
+    Use the `setProps` function or implement setter methods:
+
+    ```typescript
+    class MyComponent extends Component {
+      setTitle(title: string): void {
+        // Update logic
+      }
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Memory leaks">
+    Use the `onDestroy` callback to clean up:
+
+    ```svelte
+    <script>
+      const { element } = createClosureStore(MyComponent, {
+        onDestroy: (component) => {
+          // Clean up resources
+        }
+      });
+    </script>
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Core Concepts" icon="book" href="/core/components">
+    Learn more about Closure Next components
+  </Card>
+  <Card title="TypeScript Guide" icon="code" href="/guides/typescript">
+    Deep dive into TypeScript integration
+  </Card>
+  <Card title="Testing" icon="flask" href="/advanced/testing">
+    Learn how to test Svelte + Closure components
+  </Card>
+  <Card title="Examples" icon="stars" href="/quickstart">
+    Explore complete example applications
+  </Card>
+</CardGroup>

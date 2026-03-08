@@ -1,0 +1,535 @@
+---
+title: 'React Integration'
+description: 'Use Closure Next components seamlessly in your React applications'
+icon: 'react'
+---
+
+# React Integration
+
+The `@closure-next/react` package provides plug-and-play integration between Closure Next components and React applications. Use your Closure components as React components with full TypeScript support and automatic lifecycle management.
+
+## Installation
+
+<CodeGroup>
+```bash npm
+npm install @closure-next/react
+```
+
+```bash yarn
+yarn add @closure-next/react
+```
+
+```bash pnpm
+pnpm add @closure-next/react
+```
+</CodeGroup>
+
+## Quick Start
+
+### Using the Hook
+
+The `useClosureComponent` hook is the recommended way to integrate Closure components in React:
+
+```tsx
+import { useClosureComponent } from '@closure-next/react';
+import { Component, DOMHelper } from '@closure-next/core';
+
+class MyButton extends Component {
+  constructor(domHelper?: DOMHelper) {
+    super(domHelper || new DOMHelper(document));
+  }
+
+  createDom(): void {
+    const element = document.createElement('button');
+    element.textContent = 'Click me';
+    element.onclick = () => alert('Clicked!');
+    this.element = element;
+  }
+}
+
+function App() {
+  const ref = useClosureComponent(MyButton);
+  return <div ref={ref} />;
+}
+```
+
+### Using the Component Wrapper
+
+Alternatively, use the `ClosureComponent` wrapper:
+
+```tsx
+import { ClosureComponent } from '@closure-next/react';
+import { MyButton } from './components/MyButton';
+
+function App() {
+  return (
+    <ClosureComponent
+      component={MyButton}
+      props={{
+        label: 'Click me',
+        onClick: () => alert('Clicked!')
+      }}
+    />
+  );
+}
+```
+
+## API Reference
+
+### `useClosureComponent<T extends Component>`
+
+A React hook that creates and manages a Closure Next component instance.
+
+<ParamField path="ComponentClass" type="Constructor<T>" required>
+  The Closure Next component class to instantiate
+</ParamField>
+
+<ParamField path="props" type="Record<string, unknown>">
+  Props to pass to the component. The hook will call setter methods (e.g., `setTitle()`) if they exist.
+</ParamField>
+
+<ResponseField name="ref" type="RefObject<HTMLDivElement>">
+  A React ref that should be attached to a DOM element where the component will render
+</ResponseField>
+
+#### Example
+
+```tsx
+import { useClosureComponent } from '@closure-next/react';
+import { Component } from '@closure-next/core';
+
+class Counter extends Component {
+  private count = 0;
+
+  setCount(count: number): void {
+    this.count = count;
+    if (this.element) {
+      this.element.textContent = `Count: ${this.count}`;
+    }
+  }
+
+  createDom(): void {
+    const element = document.createElement('div');
+    element.textContent = `Count: ${this.count}`;
+    this.element = element;
+  }
+}
+
+function CounterApp() {
+  const [count, setCount] = React.useState(0);
+  const ref = useClosureComponent(Counter, { count });
+
+  return (
+    <div>
+      <div ref={ref} />
+      <button onClick={() => setCount(count + 1)}>Increment</button>
+    </div>
+  );
+}
+```
+
+### `ClosureComponent<T extends Component>`
+
+A React component wrapper for Closure Next components.
+
+<ParamField path="component" type="Constructor<T>" required>
+  The Closure Next component class
+</ParamField>
+
+<ParamField path="props" type="Record<string, unknown>">
+  Props to pass to the component
+</ParamField>
+
+#### Example
+
+```tsx
+import { ClosureComponent } from '@closure-next/react';
+import { DataTable } from './components/DataTable';
+
+function App() {
+  const [data, setData] = React.useState([]);
+
+  return (
+    <ClosureComponent
+      component={DataTable}
+      props={{
+        data,
+        onRowClick: (row) => console.log('Row clicked:', row)
+      }}
+    />
+  );
+}
+```
+
+## Advanced Usage
+
+### Reactive Props
+
+The integration automatically handles prop updates by calling setter methods on your component:
+
+```tsx
+import { useClosureComponent } from '@closure-next/react';
+import { Component } from '@closure-next/core';
+
+class TextField extends Component {
+  private value = '';
+
+  setValue(value: string): void {
+    this.value = value;
+    if (this.element) {
+      (this.element as HTMLInputElement).value = value;
+    }
+  }
+
+  createDom(): void {
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = this.value;
+    this.element = input;
+  }
+}
+
+function Form() {
+  const [value, setValue] = React.useState('');
+  const ref = useClosureComponent(TextField, { value });
+
+  return (
+    <div>
+      <div ref={ref} />
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder="Type to update Closure component"
+      />
+    </div>
+  );
+}
+```
+
+### TypeScript Support
+
+Full type safety for your Closure components:
+
+```tsx
+import type { Component } from '@closure-next/core';
+import { useClosureComponent } from '@closure-next/react';
+
+interface ButtonProps {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+}
+
+class TypedButton extends Component {
+  private label = '';
+  private onClick?: () => void;
+  private disabled = false;
+
+  setLabel(label: string): void {
+    this.label = label;
+  }
+
+  setOnClick(onClick: () => void): void {
+    this.onClick = onClick;
+  }
+
+  setDisabled(disabled: boolean): void {
+    this.disabled = disabled;
+  }
+
+  createDom(): void {
+    const button = document.createElement('button');
+    button.textContent = this.label;
+    button.disabled = this.disabled;
+    button.onclick = () => this.onClick?.();
+    this.element = button;
+  }
+}
+
+function App() {
+  const props: ButtonProps = {
+    label: 'Submit',
+    onClick: () => console.log('Submitted'),
+    disabled: false
+  };
+
+  const ref = useClosureComponent<TypedButton>(TypedButton, props);
+
+  return <div ref={ref} />;
+}
+```
+
+### Lifecycle Management
+
+The integration automatically manages component lifecycle:
+
+```tsx
+import { useClosureComponent } from '@closure-next/react';
+import { Component } from '@closure-next/core';
+
+class ManagedComponent extends Component {
+  private interval?: number;
+
+  createDom(): void {
+    const element = document.createElement('div');
+    element.textContent = 'Component mounted';
+    this.element = element;
+    
+    // Start interval when component is created
+    this.interval = window.setInterval(() => {
+      console.log('Tick');
+    }, 1000);
+  }
+
+  dispose(): void {
+    // Cleanup is called automatically when React component unmounts
+    if (this.interval) {
+      clearInterval(this.interval);
+    }
+    super.dispose();
+  }
+}
+
+function App() {
+  const [show, setShow] = React.useState(true);
+  const ref = useClosureComponent(ManagedComponent);
+
+  return (
+    <div>
+      {show && <div ref={ref} />}
+      <button onClick={() => setShow(!show)}>
+        {show ? 'Hide' : 'Show'}
+      </button>
+    </div>
+  );
+}
+```
+
+## Server-Side Rendering
+
+The React integration includes support for server-side rendering:
+
+```tsx
+import { ServerComponent } from '@closure-next/react';
+import { DOMHelper } from '@closure-next/core';
+
+class SSRComponent extends ServerComponent {
+  createDom(): void {
+    const element = document.createElement('div');
+    element.textContent = 'Server-rendered content';
+    this.element = element;
+  }
+}
+
+// Server-side
+async function renderToString() {
+  const domHelper = new DOMHelper(document);
+  const component = new SSRComponent(domHelper);
+  const html = await component.renderToString();
+  return html;
+}
+
+// Client-side hydration
+function App() {
+  const ref = useClosureComponent(SSRComponent);
+  return <div ref={ref} />;
+}
+```
+
+## Best Practices
+
+<Steps>
+  <Step title="Use setter methods for props">
+    Define setter methods (e.g., `setTitle()`, `setData()`) on your Closure components to handle prop updates from React.
+  </Step>
+
+  <Step title="Clean up in dispose()">
+    Always implement the `dispose()` method to clean up event listeners, timers, and other resources.
+  </Step>
+
+  <Step title="Keep state in React">
+    Let React manage application state and pass it down to Closure components as props.
+  </Step>
+
+  <Step title="Type your components">
+    Use TypeScript interfaces to define your component's props for better type safety.
+  </Step>
+</Steps>
+
+## Common Patterns
+
+### Form Integration
+
+```tsx
+import { useClosureComponent } from '@closure-next/react';
+import { Component } from '@closure-next/core';
+
+class FormField extends Component {
+  private value = '';
+  private onChange?: (value: string) => void;
+
+  setValue(value: string): void {
+    this.value = value;
+    if (this.element) {
+      (this.element as HTMLInputElement).value = value;
+    }
+  }
+
+  setOnChange(onChange: (value: string) => void): void {
+    this.onChange = onChange;
+  }
+
+  createDom(): void {
+    const input = document.createElement('input');
+    input.value = this.value;
+    input.oninput = (e) => {
+      this.onChange?.((e.target as HTMLInputElement).value);
+    };
+    this.element = input;
+  }
+}
+
+function ContactForm() {
+  const [formData, setFormData] = React.useState({
+    name: '',
+    email: ''
+  });
+
+  const nameRef = useClosureComponent(FormField, {
+    value: formData.name,
+    onChange: (value) => setFormData({ ...formData, name: value })
+  });
+
+  const emailRef = useClosureComponent(FormField, {
+    value: formData.email,
+    onChange: (value) => setFormData({ ...formData, email: value })
+  });
+
+  return (
+    <form onSubmit={(e) => {
+      e.preventDefault();
+      console.log('Submit:', formData);
+    }}>
+      <div ref={nameRef} />
+      <div ref={emailRef} />
+      <button type="submit">Submit</button>
+    </form>
+  );
+}
+```
+
+### Event Handling
+
+```tsx
+import { useClosureComponent } from '@closure-next/react';
+import { Component } from '@closure-next/core';
+
+class ClickableCard extends Component {
+  private title = '';
+  private onClick?: () => void;
+
+  setTitle(title: string): void {
+    this.title = title;
+  }
+
+  setOnClick(onClick: () => void): void {
+    this.onClick = onClick;
+  }
+
+  createDom(): void {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.textContent = this.title;
+    card.onclick = () => this.onClick?.();
+    this.element = card;
+  }
+}
+
+function CardList() {
+  const handleCardClick = (id: number) => {
+    console.log(`Card ${id} clicked`);
+  };
+
+  return (
+    <div>
+      {[1, 2, 3].map((id) => {
+        const ref = useClosureComponent(ClickableCard, {
+          title: `Card ${id}`,
+          onClick: () => handleCardClick(id)
+        });
+        return <div key={id} ref={ref} />;
+      })}
+    </div>
+  );
+}
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Component not rendering">
+    Make sure you're attaching the ref returned by `useClosureComponent` to a DOM element in your JSX.
+
+    ```tsx
+    // ✅ Correct
+    const ref = useClosureComponent(MyComponent);
+    return <div ref={ref} />;
+
+    // ❌ Incorrect
+    const ref = useClosureComponent(MyComponent);
+    return <div />; // Missing ref
+    ```
+  </Accordion>
+
+  <Accordion title="Props not updating">
+    Ensure your Closure component has setter methods that match your prop names:
+
+    ```tsx
+    class MyComponent extends Component {
+      // For prop 'title', define setTitle()
+      setTitle(title: string): void {
+        // Update component
+      }
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Memory leaks">
+    Always implement the `dispose()` method to clean up resources:
+
+    ```tsx
+    class MyComponent extends Component {
+      private interval?: number;
+
+      createDom(): void {
+        this.interval = window.setInterval(() => {}, 1000);
+      }
+
+      dispose(): void {
+        if (this.interval) {
+          clearInterval(this.interval);
+        }
+        super.dispose();
+      }
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Core Concepts" icon="book" href="/core/components">
+    Learn more about Closure Next components
+  </Card>
+  <Card title="TypeScript Guide" icon="code" href="/guides/typescript">
+    Deep dive into TypeScript integration
+  </Card>
+  <Card title="Testing" icon="flask" href="/advanced/testing">
+    Learn how to test React + Closure components
+  </Card>
+  <Card title="Examples" icon="stars" href="/quickstart">
+    Explore complete example applications
+  </Card>
+</CardGroup>

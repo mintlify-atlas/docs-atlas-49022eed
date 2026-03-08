@@ -1,0 +1,683 @@
+---
+title: 'Angular Integration'
+description: 'Use Closure Next components seamlessly in your Angular applications'
+icon: 'angular'
+---
+
+# Angular Integration
+
+The `@closure-next/angular` package provides plug-and-play integration between Closure Next components and Angular applications. Use your Closure components with Angular's dependency injection, change detection, and full TypeScript support.
+
+## Installation
+
+<CodeGroup>
+```bash npm
+npm install @closure-next/angular
+```
+
+```bash yarn
+yarn add @closure-next/angular
+```
+
+```bash pnpm
+pnpm add @closure-next/angular
+```
+</CodeGroup>
+
+<Note>
+  The Angular integration requires Angular 16.0.0 or higher.
+</Note>
+
+## Quick Start
+
+### Module Setup
+
+Import the `ClosureNextModule` in your Angular module:
+
+```typescript
+import { NgModule } from '@angular/core';
+import { BrowserModule } from '@angular/platform-browser';
+import { ClosureNextModule } from '@closure-next/angular';
+import { AppComponent } from './app.component';
+
+@NgModule({
+  declarations: [AppComponent],
+  imports: [
+    BrowserModule,
+    ClosureNextModule
+  ],
+  bootstrap: [AppComponent]
+})
+export class AppModule {}
+```
+
+### Basic Usage
+
+Use the `closureComponent` directive to integrate Closure components:
+
+```typescript
+import { Component } from '@angular/core';
+import { Component as ClosureComponent, DOMHelper } from '@closure-next/core';
+
+class MyButton extends ClosureComponent {
+  constructor(domHelper?: DOMHelper) {
+    super(domHelper || new DOMHelper(document));
+  }
+
+  createDom(): void {
+    const element = document.createElement('button');
+    element.textContent = 'Click me';
+    element.onclick = () => alert('Clicked!');
+    this.element = element;
+  }
+}
+
+@Component({
+  selector: 'app-root',
+  template: `
+    <div
+      closureComponent
+      [component]="buttonComponent">
+    </div>
+  `
+})
+export class AppComponent {
+  buttonComponent = MyButton;
+}
+```
+
+### With Props
+
+```typescript
+import { Component } from '@angular/core';
+import { Component as ClosureComponent } from '@closure-next/core';
+
+class Counter extends ClosureComponent {
+  private count = 0;
+
+  setCount(count: number): void {
+    this.count = count;
+    if (this.element) {
+      this.element.textContent = `Count: ${this.count}`;
+    }
+  }
+
+  createDom(): void {
+    const element = document.createElement('div');
+    element.textContent = `Count: ${this.count}`;
+    this.element = element;
+  }
+}
+
+@Component({
+  selector: 'app-counter',
+  template: `
+    <div>
+      <div
+        closureComponent
+        [component]="counterComponent"
+        [props]="{ count }">
+      </div>
+      <button (click)="increment()">Increment</button>
+    </div>
+  `
+})
+export class CounterComponent {
+  counterComponent = Counter;
+  count = 0;
+
+  increment(): void {
+    this.count++;
+  }
+}
+```
+
+## API Reference
+
+### `ClosureComponentDirective`
+
+Angular directive for rendering Closure Next components.
+
+<ParamField path="component" type="typeof Component" required>
+  The Closure Next component class to instantiate
+</ParamField>
+
+<ParamField path="props" type="Record<string, any>">
+  Props to pass to the component
+</ParamField>
+
+<ParamField path="errorBoundary" type="boolean" default="false">
+  Whether to wrap the component in an error boundary
+</ParamField>
+
+<ParamField path="ssrOptions" type="SSROptions">
+  Server-side rendering options
+</ParamField>
+
+#### SSR Options
+
+```typescript
+interface SSROptions {
+  hydration?: 'client-only' | 'server-first' | 'progressive';
+  ssr?: boolean;
+}
+```
+
+### `ClosureNextModule`
+
+The Angular module that provides Closure Next integration.
+
+```typescript
+import { ClosureNextModule } from '@closure-next/angular';
+
+@NgModule({
+  imports: [ClosureNextModule],
+  // ...
+})
+export class AppModule {}
+```
+
+## Advanced Usage
+
+### Reactive Props
+
+Angular's change detection automatically updates Closure component props:
+
+```typescript
+import { Component } from '@angular/core';
+import { Component as ClosureComponent } from '@closure-next/core';
+
+class TextField extends ClosureComponent {
+  private value = '';
+
+  setValue(value: string): void {
+    this.value = value;
+    if (this.element) {
+      (this.element as HTMLInputElement).value = value;
+    }
+  }
+
+  createDom(): void {
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = this.value;
+    this.element = input;
+  }
+}
+
+@Component({
+  selector: 'app-text-field',
+  template: `
+    <div>
+      <div
+        closureComponent
+        [component]="textFieldComponent"
+        [props]="{ value }">
+      </div>
+      <input
+        [(ngModel)]="value"
+        placeholder="Type to update Closure component"
+      />
+    </div>
+  `
+})
+export class TextFieldComponent {
+  textFieldComponent = TextField;
+  value = '';
+}
+```
+
+### Dependency Injection
+
+Integrate with Angular's dependency injection system:
+
+```typescript
+import { Injectable } from '@angular/core';
+import { Component as ClosureComponent, DOMHelper } from '@closure-next/core';
+
+@Injectable({ providedIn: 'root' })
+export class ClosureService {
+  private domHelper: DOMHelper;
+
+  constructor() {
+    this.domHelper = new DOMHelper(document);
+  }
+
+  createComponent<T extends ClosureComponent>(
+    ComponentClass: new (domHelper: DOMHelper) => T
+  ): T {
+    return new ComponentClass(this.domHelper);
+  }
+
+  renderComponent<T extends ClosureComponent>(
+    component: T,
+    container: HTMLElement
+  ): void {
+    component.render(container);
+  }
+}
+
+@Component({
+  selector: 'app-root',
+  template: `<div #container></div>`
+})
+export class AppComponent implements AfterViewInit {
+  @ViewChild('container', { static: false }) container!: ElementRef;
+
+  constructor(private closureService: ClosureService) {}
+
+  ngAfterViewInit(): void {
+    const component = this.closureService.createComponent(MyComponent);
+    this.closureService.renderComponent(
+      component,
+      this.container.nativeElement
+    );
+  }
+}
+```
+
+### Error Boundaries
+
+Handle component errors gracefully:
+
+```typescript
+import { Component, ErrorHandler } from '@angular/core';
+import { Component as ClosureComponent } from '@closure-next/core';
+
+class ErrorProneComponent extends ClosureComponent {
+  createDom(): void {
+    throw new Error('Component initialization failed');
+  }
+}
+
+@Component({
+  selector: 'app-root',
+  template: `
+    <div
+      closureComponent
+      [component]="errorComponent"
+      [errorBoundary]="true">
+    </div>
+  `
+})
+export class AppComponent {
+  errorComponent = ErrorProneComponent;
+}
+
+@Injectable()
+export class GlobalErrorHandler implements ErrorHandler {
+  handleError(error: Error): void {
+    console.error('Closure component error:', error);
+    // Handle error (e.g., show user notification)
+  }
+}
+```
+
+### TypeScript Support
+
+Full type safety with Angular and Closure components:
+
+```typescript
+import { Component } from '@angular/core';
+import { Component as ClosureComponent } from '@closure-next/core';
+
+interface ButtonProps {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+}
+
+class TypedButton extends ClosureComponent {
+  private props: ButtonProps = {
+    label: '',
+    onClick: () => {}
+  };
+
+  setLabel(label: string): void {
+    this.props.label = label;
+    this.updateButton();
+  }
+
+  setOnClick(onClick: () => void): void {
+    this.props.onClick = onClick;
+    this.updateButton();
+  }
+
+  setDisabled(disabled: boolean): void {
+    this.props.disabled = disabled;
+    this.updateButton();
+  }
+
+  private updateButton(): void {
+    if (this.element) {
+      const button = this.element as HTMLButtonElement;
+      button.textContent = this.props.label;
+      button.disabled = this.props.disabled || false;
+      button.onclick = this.props.onClick;
+    }
+  }
+
+  createDom(): void {
+    const button = document.createElement('button');
+    this.element = button;
+    this.updateButton();
+  }
+}
+
+@Component({
+  selector: 'app-button',
+  template: `
+    <div
+      closureComponent
+      [component]="buttonComponent"
+      [props]="buttonProps">
+    </div>
+  `
+})
+export class ButtonComponent {
+  buttonComponent = TypedButton;
+  buttonProps: ButtonProps = {
+    label: 'Submit',
+    onClick: () => this.handleClick(),
+    disabled: false
+  };
+
+  handleClick(): void {
+    console.log('Button clicked');
+  }
+}
+```
+
+## Server-Side Rendering
+
+The Angular integration supports server-side rendering:
+
+```typescript
+import { Component } from '@angular/core';
+import { ServerComponent } from '@closure-next/angular';
+import { DOMHelper } from '@closure-next/core';
+
+class SSRComponent extends ServerComponent {
+  protected ssrEnabled = true;
+
+  constructor(domHelper: DOMHelper) {
+    super(domHelper);
+  }
+
+  createDom(): void {
+    const element = document.createElement('div');
+    element.textContent = 'Server-rendered content';
+    this.element = element;
+  }
+}
+
+@Component({
+  selector: 'app-ssr',
+  template: `
+    <div
+      closureComponent
+      [component]="ssrComponent"
+      [ssrOptions]="{ ssr: true, hydration: 'server-first' }">
+    </div>
+  `
+})
+export class SSRComponent {
+  ssrComponent = SSRComponent;
+}
+```
+
+### Hydration Strategies
+
+<CodeGroup>
+```typescript client-only
+// Render only on the client
+@Component({
+  template: `
+    <div
+      closureComponent
+      [component]="component"
+      [ssrOptions]="{ hydration: 'client-only' }">
+    </div>
+  `
+})
+```
+
+```typescript server-first
+// Render on server, hydrate on client
+@Component({
+  template: `
+    <div
+      closureComponent
+      [component]="component"
+      [ssrOptions]="{ hydration: 'server-first' }">
+    </div>
+  `
+})
+```
+
+```typescript progressive
+// Progressive hydration
+@Component({
+  template: `
+    <div
+      closureComponent
+      [component]="component"
+      [ssrOptions]="{ hydration: 'progressive' }">
+    </div>
+  `
+})
+```
+</CodeGroup>
+
+## Best Practices
+
+<Steps>
+  <Step title="Use dependency injection">
+    Leverage Angular's DI system to manage Closure component instances and shared services.
+  </Step>
+
+  <Step title="Implement OnDestroy">
+    Clean up Closure components when Angular components are destroyed.
+  </Step>
+
+  <Step title="Define setter methods">
+    Implement setter methods on Closure components to handle prop updates from Angular.
+  </Step>
+
+  <Step title="Use error boundaries">
+    Enable error boundaries for production environments to handle component failures gracefully.
+  </Step>
+</Steps>
+
+## Common Patterns
+
+### Form Integration
+
+```typescript
+import { Component } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { Component as ClosureComponent } from '@closure-next/core';
+
+class FormField extends ClosureComponent {
+  private value = '';
+  private onChange?: (value: string) => void;
+
+  setValue(value: string): void {
+    this.value = value;
+    if (this.element) {
+      (this.element as HTMLInputElement).value = value;
+    }
+  }
+
+  setOnChange(onChange: (value: string) => void): void {
+    this.onChange = onChange;
+  }
+
+  createDom(): void {
+    const input = document.createElement('input');
+    input.value = this.value;
+    input.oninput = (e) => {
+      this.onChange?.((e.target as HTMLInputElement).value);
+    };
+    this.element = input;
+  }
+}
+
+@Component({
+  selector: 'app-contact-form',
+  template: `
+    <form (ngSubmit)="onSubmit()">
+      <div
+        closureComponent
+        [component]="formFieldComponent"
+        [props]="{ value: formData.name, onChange: updateName }">
+      </div>
+      <div
+        closureComponent
+        [component]="formFieldComponent"
+        [props]="{ value: formData.email, onChange: updateEmail }">
+      </div>
+      <button type="submit">Submit</button>
+    </form>
+  `
+})
+export class ContactFormComponent {
+  formFieldComponent = FormField;
+  formData = {
+    name: '',
+    email: ''
+  };
+
+  updateName = (value: string) => {
+    this.formData.name = value;
+  };
+
+  updateEmail = (value: string) => {
+    this.formData.email = value;
+  };
+
+  onSubmit(): void {
+    console.log('Submit:', this.formData);
+  }
+}
+```
+
+### List Rendering
+
+```typescript
+import { Component } from '@angular/core';
+import { Component as ClosureComponent } from '@closure-next/core';
+
+class ListItem extends ClosureComponent {
+  private title = '';
+  private onClick?: () => void;
+
+  setTitle(title: string): void {
+    this.title = title;
+    if (this.element) {
+      this.element.textContent = title;
+    }
+  }
+
+  setOnClick(onClick: () => void): void {
+    this.onClick = onClick;
+  }
+
+  createDom(): void {
+    const div = document.createElement('div');
+    div.className = 'list-item';
+    div.textContent = this.title;
+    div.onclick = () => this.onClick?.();
+    this.element = div;
+  }
+}
+
+@Component({
+  selector: 'app-list',
+  template: `
+    <div>
+      <div
+        *ngFor="let item of items"
+        closureComponent
+        [component]="listItemComponent"
+        [props]="{
+          title: item.title,
+          onClick: () => handleItemClick(item.id)
+        }">
+      </div>
+    </div>
+  `
+})
+export class ListComponent {
+  listItemComponent = ListItem;
+  items = [
+    { id: 1, title: 'Item 1' },
+    { id: 2, title: 'Item 2' },
+    { id: 3, title: 'Item 3' }
+  ];
+
+  handleItemClick(id: number): void {
+    console.log(`Item ${id} clicked`);
+  }
+}
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Component not rendering">
+    Ensure you've imported `ClosureNextModule`:
+
+    ```typescript
+    @NgModule({
+      imports: [ClosureNextModule],
+      // ...
+    })
+    export class AppModule {}
+    ```
+  </Accordion>
+
+  <Accordion title="Props not updating">
+    Implement setter methods on your Closure component:
+
+    ```typescript
+    class MyComponent extends Component {
+      setTitle(title: string): void {
+        // Update logic
+      }
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Memory leaks">
+    Implement `ngOnDestroy` to clean up:
+
+    ```typescript
+    @Component({
+      // ...
+    })
+    export class MyComponent implements OnDestroy {
+      ngOnDestroy(): void {
+        // Clean up Closure components
+      }
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Core Concepts" icon="book" href="/core/components">
+    Learn more about Closure Next components
+  </Card>
+  <Card title="TypeScript Guide" icon="code" href="/guides/typescript">
+    Deep dive into TypeScript integration
+  </Card>
+  <Card title="Testing" icon="flask" href="/advanced/testing">
+    Learn how to test Angular + Closure components
+  </Card>
+  <Card title="Examples" icon="stars" href="/quickstart">
+    Explore complete example applications
+  </Card>
+</CardGroup>

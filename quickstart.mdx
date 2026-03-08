@@ -1,80 +1,344 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quick Start
+description: Build your first Closure Next component in under 5 minutes
 ---
 
-## Get started in three steps
+## Overview
 
-Get your documentation site running locally and make your first customization.
+This guide walks you through creating a simple interactive component with state management. You'll learn the core concepts of Closure Next: components, DOM helpers, and event handling.
 
-### Step 1: Set up your local environment
+## Installation
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
+If you haven't already, install the core package:
+
+<CodeGroup>
+
+```bash npm
+npm install @closure-next/core
+```
+
+```bash yarn
+yarn add @closure-next/core
+```
+
+```bash pnpm
+pnpm add @closure-next/core
+```
+
+</CodeGroup>
+
+## Building Your First Component
+
+<Steps>
+
+### Import Core Classes
+
+Start by importing the necessary classes from `@closure-next/core`:
+
+```typescript app.ts
+import { Component, DOMHelper, EventType } from '@closure-next/core';
+import type { ComponentState } from '@closure-next/core';
+```
+
+### Create a Custom Component
+
+Extend the `Component` base class to create a counter component:
+
+```typescript app.ts
+class CounterComponent extends Component {
+  protected count: number;
+
+  constructor(domHelper: DOMHelper, initialCount: number = 0) {
+    super(domHelper);
+    this.count = initialCount;
+    this.state = { count: initialCount };
+  }
+
+  protected async createDom(): Promise<void> {
+    await super.createDom();
     
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+    if (this.element) {
+      this.element.innerHTML = `
+        <div style="padding: 20px; font-family: sans-serif;">
+          <h2>Counter: ${this.state.count}</h2>
+          <button id="increment">Increment</button>
+          <button id="decrement">Decrement</button>
+        </div>
+      `;
+      
+      // Attach event listeners
+      this.element.querySelector('#increment')?.addEventListener('click', () => {
+        this.increment();
+      });
+      
+      this.element.querySelector('#decrement')?.addEventListener('click', () => {
+        this.decrement();
+      });
+    }
+  }
 
-### Step 2: Deploy your changes
+  async increment(): Promise<void> {
+    this.count++;
+    await this.setState({ count: this.count });
+  }
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+  async decrement(): Promise<void> {
+    this.count--;
+    await this.setState({ count: this.count });
+  }
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+  async setState(state: ComponentState): Promise<void> {
+    if ('count' in state) {
+      this.count = state.count;
+    }
+    await super.setState(state);
+  }
+}
+```
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+### Initialize and Render
 
-### Step 3: Go live
+Create an instance and render it to the DOM:
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+```typescript app.ts
+// Initialize the DOM helper
+const domHelper = new DOMHelper();
 
-## Next steps
+// Create the component
+const counter = new CounterComponent(domHelper, 0);
 
-Now that you have your docs running, explore these key features:
+// Set an ID for easy access
+counter.setId('my-counter');
 
-<CardGroup cols={2}>
+// Listen to state changes
+counter.addEventListener(EventType.STATECHANGE, (event) => {
+  console.log('State changed:', event.data);
+});
 
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
+// Render to the page
+const container = document.getElementById('app');
+if (container) {
+  counter.render(container);
+}
+```
 
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
+### Add HTML Container
 
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
+Create an `index.html` file:
 
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
+```html index.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Closure Next Counter</title>
+</head>
+<body>
+  <div id="app"></div>
+  <script type="module" src="./app.ts"></script>
+</body>
+</html>
+```
 
-</CardGroup>
+</Steps>
+
+## Understanding the Code
+
+### Component Lifecycle
+
+Closure Next components follow a clear lifecycle:
+
+1. **Constructor** - Initialize state and dependencies
+2. **`createDom()`** - Build the DOM structure
+3. **`render()`** - Mount to a container element
+4. **`setState()`** - Update state and trigger re-render
+5. **`dispose()`** - Clean up when done
+
+### State Management
+
+The `setState()` method is asynchronous and triggers automatic re-rendering:
+
+```typescript
+await component.setState({ count: 42 });
+```
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+State changes emit a `STATECHANGE` event automatically. Subscribe to this event to react to updates.
 </Note>
+
+### Type Safety
+
+All core APIs are fully typed:
+
+```typescript
+import type { 
+  ComponentInterface,
+  ComponentState,
+  EventInterface,
+  EventTargetInterface 
+} from '@closure-next/core';
+```
+
+## Running Your App
+
+Use a bundler like Vite to run your application:
+
+<CodeGroup>
+
+```bash npm
+npx vite
+```
+
+```bash yarn
+yarn vite
+```
+
+```bash pnpm
+pnpm vite
+```
+
+</CodeGroup>
+
+Open your browser to see the interactive counter.
+
+## Parent-Child Components
+
+Components can be composed into hierarchies:
+
+```typescript
+const parent = new Component(domHelper);
+const child = new Component(domHelper);
+
+parent.addChild(child);
+
+// Render parent, children render automatically
+await parent.render(container);
+
+console.log(child.getParent()); // parent
+console.log(parent.getChildren()); // [child]
+```
+
+<Tip>
+When you dispose a parent component, all children are automatically disposed as well.
+</Tip>
+
+## Server-Side Rendering
+
+Closure Next supports SSR out of the box:
+
+```typescript
+import { JSDOM } from 'jsdom';
+
+// Create a server-side DOM
+const jsdom = new JSDOM('<!DOCTYPE html><html><body></body></html>');
+const document = jsdom.window.document;
+
+// Create component with server-side DOM
+const domHelper = new DOMHelper(document);
+const component = new CounterComponent(domHelper);
+
+// Render to string
+const html = await component.renderToString();
+
+// Send HTML to client
+res.send(html);
+```
+
+On the client, hydrate the component:
+
+```typescript
+const domHelper = new DOMHelper();
+const component = new CounterComponent(domHelper);
+
+// Hydrate existing server-rendered HTML
+await component.hydrate(container);
+```
+
+## Next Steps
+
+<Card title="API Reference" icon="book" href="/api/component">
+  Explore the complete Component API
+</Card>
+
+<Card title="Event Handling" icon="bolt" href="/core/events">
+  Learn about the event-driven architecture
+</Card>
+
+<Card title="DOM Manipulation" icon="code" href="/api/dom-helper">
+  Master DOM utilities for cross-platform compatibility
+</Card>
+
+## Complete Example
+
+Here's the full working example:
+
+```typescript app.ts
+import { Component, DOMHelper, EventType } from '@closure-next/core';
+import type { ComponentState } from '@closure-next/core';
+
+class CounterComponent extends Component {
+  protected count: number;
+
+  constructor(domHelper: DOMHelper, initialCount: number = 0) {
+    super(domHelper);
+    this.count = initialCount;
+    this.state = { count: initialCount };
+  }
+
+  protected async createDom(): Promise<void> {
+    await super.createDom();
+    
+    if (this.element) {
+      this.element.innerHTML = `
+        <div style="padding: 20px; font-family: sans-serif;">
+          <h2>Counter: ${this.state.count}</h2>
+          <button id="increment">Increment</button>
+          <button id="decrement">Decrement</button>
+        </div>
+      `;
+      
+      this.element.querySelector('#increment')?.addEventListener('click', () => {
+        this.increment();
+      });
+      
+      this.element.querySelector('#decrement')?.addEventListener('click', () => {
+        this.decrement();
+      });
+    }
+  }
+
+  async increment(): Promise<void> {
+    this.count++;
+    await this.setState({ count: this.count });
+  }
+
+  async decrement(): Promise<void> {
+    this.count--;
+    await this.setState({ count: this.count });
+  }
+
+  async setState(state: ComponentState): Promise<void> {
+    if ('count' in state) {
+      this.count = state.count;
+    }
+    await super.setState(state);
+  }
+}
+
+// Initialize
+const domHelper = new DOMHelper();
+const counter = new CounterComponent(domHelper, 0);
+counter.setId('my-counter');
+
+// Listen to events
+counter.addEventListener(EventType.STATECHANGE, (event) => {
+  console.log('State changed:', event.data);
+});
+
+// Render
+const container = document.getElementById('app');
+if (container) {
+  counter.render(container);
+}
+```

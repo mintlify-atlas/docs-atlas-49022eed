@@ -1,0 +1,389 @@
+---
+title: Rollup Plugin
+description: Integrate Closure Next with Rollup for efficient bundling and library creation
+---
+
+# Rollup Plugin
+
+The `@closure-next/rollup` plugin provides seamless integration with Rollup, enabling efficient bundling, code splitting, and module resolution for your Closure Next applications and libraries.
+
+## Installation
+
+<Steps>
+  <Step title="Install the plugin">
+    Install the Rollup plugin package:
+    ```bash
+    npm install @closure-next/rollup
+    ```
+  </Step>
+
+  <Step title="Configure Rollup">
+    Add the plugin to your `rollup.config.js`:
+    ```javascript
+    import { closureNextRollup } from '@closure-next/rollup';
+
+    export default {
+      input: 'src/index.ts',
+      plugins: [closureNextRollup()]
+    };
+    ```
+  </Step>
+
+  <Step title="Run Rollup">
+    Build your application:
+    ```bash
+    rollup -c rollup.config.js
+    ```
+  </Step>
+</Steps>
+
+## Plugin Options
+
+The `closureNextRollup` function accepts the following configuration options:
+
+### codeSplitting
+
+<ParamField path="codeSplitting" type="boolean">
+  Enable automatic code splitting for Closure Next components. When enabled, dynamic imports are split into separate chunks.
+</ParamField>
+
+### paths
+
+<ParamField path="paths" type="Record<string, string>">
+  Custom module resolution paths. These allow you to create import aliases that are resolved during the build process.
+</ParamField>
+
+## Configuration Examples
+
+<CodeGroup>
+```javascript Basic Configuration
+import { closureNextRollup } from '@closure-next/rollup';
+
+export default {
+  input: 'src/index.ts',
+  output: {
+    dir: 'dist',
+    format: 'esm'
+  },
+  plugins: [closureNextRollup()]
+};
+```
+
+```javascript Development Mode
+import { closureNextRollup } from '@closure-next/rollup';
+import typescript from '@rollup/plugin-typescript';
+
+export default {
+  input: 'src/index.ts',
+  output: {
+    dir: 'dist',
+    format: 'esm',
+    sourcemap: true
+  },
+  plugins: [
+    typescript(),
+    closureNextRollup({
+      codeSplitting: true,
+      paths: {
+        '@closure-next': './node_modules/@closure-next'
+      }
+    })
+  ],
+  watch: {
+    include: 'src/**'
+  }
+};
+```
+
+```javascript Production Mode
+import { closureNextRollup } from '@closure-next/rollup';
+import typescript from '@rollup/plugin-typescript';
+import terser from '@rollup/plugin-terser';
+import resolve from '@rollup/plugin-node-resolve';
+
+export default {
+  input: 'src/index.ts',
+  output: {
+    dir: 'dist',
+    format: 'esm',
+    sourcemap: false
+  },
+  plugins: [
+    resolve(),
+    typescript(),
+    closureNextRollup({
+      codeSplitting: true
+    }),
+    terser()
+  ]
+};
+```
+
+```javascript Library Configuration
+import { closureNextRollup } from '@closure-next/rollup';
+import typescript from '@rollup/plugin-typescript';
+
+export default {
+  input: 'src/index.ts',
+  output: [
+    {
+      file: 'dist/index.js',
+      format: 'esm'
+    },
+    {
+      file: 'dist/index.cjs',
+      format: 'cjs'
+    },
+    {
+      file: 'dist/index.umd.js',
+      format: 'umd',
+      name: 'ClosureNext'
+    }
+  ],
+  plugins: [
+    typescript(),
+    closureNextRollup({
+      paths: {
+        '@components': './src/components',
+        '@utils': './src/utils'
+      }
+    })
+  ],
+  external: ['@closure-next/core']
+};
+```
+</CodeGroup>
+
+## How It Works
+
+The Rollup plugin provides two main features:
+
+### Module Resolution
+
+The plugin implements a custom `resolveId` hook to handle path aliases:
+
+```javascript
+// Configuration
+closureNextRollup({
+  paths: {
+    '@components': './src/components',
+    '@utils': './src/utils'
+  }
+})
+
+// In your code
+import { MyComponent } from '@components/MyComponent';
+import { formatDate } from '@utils/date';
+```
+
+The plugin resolves these aliases during the build process, converting them to actual file paths.
+
+### Import Transformation
+
+The plugin automatically transforms TypeScript imports to use `.js` extensions:
+
+```typescript
+// Before transformation
+import { Component } from './component.ts';
+import './styles.ts';
+
+// After transformation
+import { Component } from './component.js';
+import './styles.js';
+```
+
+This ensures compatibility with ES modules and modern JavaScript runtimes.
+
+## Code Splitting
+
+Rollup automatically handles code splitting for dynamic imports:
+
+```typescript
+// Your code
+import { Component } from '@closure-next/core';
+
+// Lazy load components
+const LazyComponent = await import('./components/LazyComponent');
+```
+
+When built, this creates separate chunks:
+
+```
+dist/
+  index.js           # Main bundle
+  LazyComponent.js   # Lazy-loaded chunk
+```
+
+## Creating Libraries
+
+Rollup is ideal for creating Closure Next libraries. Configure multiple output formats:
+
+```javascript
+export default {
+  input: 'src/index.ts',
+  output: [
+    {
+      file: 'dist/index.js',
+      format: 'esm',
+      sourcemap: true
+    },
+    {
+      file: 'dist/index.cjs',
+      format: 'cjs',
+      sourcemap: true
+    }
+  ],
+  plugins: [closureNextRollup()],
+  external: ['@closure-next/core'] // Don't bundle peer dependencies
+};
+```
+
+Update your `package.json`:
+
+```json
+{
+  "name": "my-closure-library",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "types": "./dist/index.d.ts"
+    }
+  }
+}
+```
+
+## TypeScript Types
+
+The plugin includes full TypeScript definitions:
+
+```typescript
+import { closureNextRollup } from '@closure-next/rollup';
+import type { RollupOptions } from 'rollup';
+
+const config: RollupOptions = {
+  input: 'src/index.ts',
+  plugins: [
+    closureNextRollup({
+      codeSplitting: true,
+      paths: {
+        '@components': './src/components'
+      }
+    })
+  ]
+};
+
+export default config;
+```
+
+## Common Plugin Combinations
+
+### TypeScript + Terser
+
+```javascript
+import { closureNextRollup } from '@closure-next/rollup';
+import typescript from '@rollup/plugin-typescript';
+import terser from '@rollup/plugin-terser';
+
+export default {
+  plugins: [
+    typescript(),
+    closureNextRollup(),
+    terser()
+  ]
+};
+```
+
+### Node Resolve + CommonJS
+
+```javascript
+import { closureNextRollup } from '@closure-next/rollup';
+import resolve from '@rollup/plugin-node-resolve';
+import commonjs from '@rollup/plugin-commonjs';
+
+export default {
+  plugins: [
+    resolve(),
+    commonjs(),
+    closureNextRollup()
+  ]
+};
+```
+
+### TypeScript + JSON + Replace
+
+```javascript
+import { closureNextRollup } from '@closure-next/rollup';
+import typescript from '@rollup/plugin-typescript';
+import json from '@rollup/plugin-json';
+import replace from '@rollup/plugin-replace';
+
+export default {
+  plugins: [
+    replace({
+      'process.env.NODE_ENV': JSON.stringify('production')
+    }),
+    json(),
+    typescript(),
+    closureNextRollup()
+  ]
+};
+```
+
+## Optimization Tips
+
+<Tip>
+  **External Dependencies**: Mark peer dependencies as `external` to avoid bundling them in libraries.
+</Tip>
+
+<Tip>
+  **Tree Shaking**: Rollup automatically performs tree shaking. Write code with ES modules for best results.
+</Tip>
+
+<Tip>
+  **Multiple Outputs**: Generate both ESM and CJS formats for maximum compatibility.
+</Tip>
+
+<Tip>
+  **Source Maps**: Enable source maps in development for easier debugging.
+</Tip>
+
+<Warning>
+  The plugin requires **Rollup 4.0.0 or higher**. Make sure your Rollup version is compatible.
+</Warning>
+
+## Watch Mode
+
+Enable watch mode for development:
+
+```bash
+rollup -c -w
+```
+
+Or configure in your rollup.config.js:
+
+```javascript
+export default {
+  // ... other config
+  watch: {
+    include: 'src/**',
+    exclude: 'node_modules/**',
+    clearScreen: false
+  }
+};
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Webpack Plugin" icon="cube" href="/build-tools/webpack">
+    Learn about the Webpack plugin for application bundling
+  </Card>
+  <Card title="Vite Plugin" icon="bolt" href="/build-tools/vite">
+    Explore the Vite plugin for fast development
+  </Card>
+</CardGroup>

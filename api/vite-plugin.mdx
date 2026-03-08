@@ -1,0 +1,540 @@
+---
+title: "Vite Plugin API"
+description: "Vite integration for Closure Next applications"
+icon: "bolt-lightning"
+---
+
+The `@closure-next/vite` package provides a Vite plugin for seamless integration of Closure Next components with instant HMR (Hot Module Replacement) and optimized builds.
+
+## Installation
+
+```bash
+npm install @closure-next/vite vite
+```
+
+## Quick Start
+
+```typescript
+// vite.config.ts
+import { defineConfig } from 'vite';
+import { closureNextVite } from '@closure-next/vite';
+
+export default defineConfig({
+  plugins: [
+    closureNextVite({
+      hmr: true
+    })
+  ]
+});
+```
+
+## API Reference
+
+### closureNextVite
+
+Creates a Vite plugin for Closure Next integration.
+
+```typescript
+function closureNextVite(options?: ClosureNextViteOptions): Plugin
+```
+
+<ParamField path="options" type="ClosureNextViteOptions">
+  Configuration options for the plugin.
+</ParamField>
+
+<ResponseField name="returns" type="Plugin">
+  A Vite plugin instance.
+</ResponseField>
+
+#### ClosureNextViteOptions
+
+<ParamField path="hmr" type="boolean" default="true">
+  Enable Hot Module Replacement for Closure Next components. When enabled, component changes trigger instant updates without full page reloads.
+  
+  ```typescript
+  closureNextVite({
+    hmr: true
+  })
+  ```
+</ParamField>
+
+<ParamField path="paths" type="Record<string, string>">
+  Custom module resolution paths. Configure aliases for cleaner imports.
+  
+  ```typescript
+  closureNextVite({
+    paths: {
+      '@components': './src/components',
+      '@utils': './src/utils'
+    }
+  })
+  ```
+</ParamField>
+
+## Configuration Examples
+
+### Basic Configuration
+
+```typescript
+// vite.config.ts
+import { defineConfig } from 'vite';
+import { closureNextVite } from '@closure-next/vite';
+
+export default defineConfig({
+  plugins: [
+    closureNextVite()
+  ]
+});
+```
+
+### Full Configuration
+
+```typescript
+// vite.config.ts
+import { defineConfig } from 'vite';
+import { closureNextVite } from '@closure-next/vite';
+import path from 'path';
+
+export default defineConfig({
+  plugins: [
+    closureNextVite({
+      hmr: true,
+      paths: {
+        '@components': path.resolve(__dirname, 'src/components'),
+        '@shared': path.resolve(__dirname, 'src/shared'),
+        '@closure-next/core': path.resolve(__dirname, 'node_modules/@closure-next/core')
+      }
+    })
+  ],
+  build: {
+    target: 'esnext',
+    minify: 'terser'
+  },
+  server: {
+    port: 3000,
+    open: true
+  }
+});
+```
+
+### Development Configuration
+
+```typescript
+// vite.config.dev.ts
+import { defineConfig } from 'vite';
+import { closureNextVite } from '@closure-next/vite';
+
+export default defineConfig({
+  plugins: [
+    closureNextVite({
+      hmr: true // Enable HMR in development
+    })
+  ],
+  server: {
+    hmr: {
+      overlay: true // Show errors as overlay
+    }
+  }
+});
+```
+
+### Production Configuration
+
+```typescript
+// vite.config.prod.ts
+import { defineConfig } from 'vite';
+import { closureNextVite } from '@closure-next/vite';
+
+export default defineConfig({
+  plugins: [
+    closureNextVite({
+      hmr: false // Disable HMR in production
+    })
+  ],
+  build: {
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true
+      }
+    },
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'closure-next': ['@closure-next/core']
+        }
+      }
+    }
+  }
+});
+```
+
+## Features
+
+### Hot Module Replacement (HMR)
+
+The plugin provides instant HMR for Closure Next components:
+
+```typescript
+// Component updates reflect immediately without page reload
+import { Component } from '@closure-next/core';
+
+export class MyComponent extends Component {
+  override render(element: HTMLElement): void {
+    element.innerHTML = '<div>Updated content</div>';
+    // Changes appear instantly when you save!
+  }
+}
+```
+
+HMR features:
+- **Fast refresh**: Components update without losing state
+- **Error recovery**: Errors are displayed as overlay and cleared on fix
+- **Module invalidation**: Only changed modules are reloaded
+
+<Note>
+  HMR is automatically disabled in production builds.
+</Note>
+
+### Module Resolution
+
+Configure path aliases for cleaner imports:
+
+```typescript
+closureNextVite({
+  paths: {
+    '@components': './src/components',
+    '@utils': './src/utils'
+  }
+});
+```
+
+```typescript
+// Use clean imports
+import { MyComponent } from '@components/MyComponent';
+import { formatDate } from '@utils/date';
+```
+
+### TypeScript Transform
+
+The plugin automatically transforms TypeScript imports to JavaScript:
+
+```typescript
+// Write this
+import { Component } from './Component.ts';
+
+// Plugin transforms to this
+import { Component } from './Component.js';
+```
+
+This ensures compatibility with Vite's ES module system.
+
+## Integration Examples
+
+### With React
+
+```typescript
+// vite.config.ts
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import { closureNextVite } from '@closure-next/vite';
+
+export default defineConfig({
+  plugins: [
+    react(),
+    closureNextVite({
+      hmr: true
+    })
+  ]
+});
+```
+
+### With Vue
+
+```typescript
+// vite.config.ts
+import { defineConfig } from 'vite';
+import vue from '@vitejs/plugin-vue';
+import { closureNextVite } from '@closure-next/vite';
+
+export default defineConfig({
+  plugins: [
+    vue(),
+    closureNextVite({
+      paths: {
+        '@': './src'
+      }
+    })
+  ]
+});
+```
+
+### With Svelte
+
+```typescript
+// vite.config.ts
+import { defineConfig } from 'vite';
+import { svelte } from '@sveltejs/vite-plugin-svelte';
+import { closureNextVite } from '@closure-next/vite';
+
+export default defineConfig({
+  plugins: [
+    svelte(),
+    closureNextVite()
+  ]
+});
+```
+
+### With Solid
+
+```typescript
+// vite.config.ts
+import { defineConfig } from 'vite';
+import solid from 'vite-plugin-solid';
+import { closureNextVite } from '@closure-next/vite';
+
+export default defineConfig({
+  plugins: [
+    solid(),
+    closureNextVite({
+      hmr: true
+    })
+  ]
+});
+```
+
+## Development Workflow
+
+### Starting Dev Server
+
+```bash
+# Start Vite dev server with HMR
+npm run dev
+
+# Or with custom port
+vite --port 3000
+```
+
+### Building for Production
+
+```bash
+# Production build
+npm run build
+
+# Preview production build
+npm run preview
+```
+
+### HMR Client Code
+
+The plugin automatically injects HMR code:
+
+```typescript
+// Automatically added by the plugin
+if (import.meta.hot) {
+  import.meta.hot.on('closure-next-hmr', ({ file }) => {
+    if (file === currentFile) {
+      import.meta.hot.invalidate();
+    }
+  });
+}
+```
+
+## Optimization
+
+### Code Splitting
+
+```typescript
+// vite.config.ts
+import { defineConfig } from 'vite';
+import { closureNextVite } from '@closure-next/vite';
+
+export default defineConfig({
+  plugins: [
+    closureNextVite()
+  ],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'closure-next-vendor': ['@closure-next/core'],
+          'closure-next-components': ['@closure-next/web-components']
+        }
+      }
+    }
+  }
+});
+```
+
+### Dependency Pre-bundling
+
+```typescript
+// vite.config.ts
+import { defineConfig } from 'vite';
+import { closureNextVite } from '@closure-next/vite';
+
+export default defineConfig({
+  plugins: [
+    closureNextVite()
+  ],
+  optimizeDeps: {
+    include: ['@closure-next/core'],
+    exclude: []
+  }
+});
+```
+
+### Build Analysis
+
+```typescript
+// vite.config.ts
+import { defineConfig } from 'vite';
+import { closureNextVite } from '@closure-next/vite';
+import { visualizer } from 'rollup-plugin-visualizer';
+
+export default defineConfig({
+  plugins: [
+    closureNextVite(),
+    visualizer({
+      open: true,
+      filename: 'dist/stats.html'
+    })
+  ]
+});
+```
+
+## Environment Variables
+
+```typescript
+// vite.config.ts
+import { defineConfig } from 'vite';
+import { closureNextVite } from '@closure-next/vite';
+
+export default defineConfig({
+  plugins: [
+    closureNextVite({
+      hmr: process.env.NODE_ENV === 'development'
+    })
+  ],
+  define: {
+    __DEV__: process.env.NODE_ENV === 'development'
+  }
+});
+```
+
+## TypeScript Definitions
+
+```typescript
+import type { Plugin } from 'vite';
+
+interface ClosureNextViteOptions {
+  hmr?: boolean;
+  paths?: Record<string, string>;
+}
+
+export function closureNextVite(
+  options?: ClosureNextViteOptions
+): Plugin;
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Keep HMR enabled in development">
+    Always enable HMR during development for the best experience:
+    
+    ```typescript
+    closureNextVite({
+      hmr: process.env.NODE_ENV === 'development'
+    })
+    ```
+  </Accordion>
+  
+  <Accordion title="Use path aliases">
+    Define aliases for common directories to keep imports clean:
+    
+    ```typescript
+    closureNextVite({
+      paths: {
+        '@components': './src/components',
+        '@utils': './src/utils',
+        '@types': './src/types'
+      }
+    })
+    ```
+  </Accordion>
+  
+  <Accordion title="Optimize for production">
+    Configure build options for optimal production bundles:
+    
+    ```typescript
+    export default defineConfig({
+      plugins: [closureNextVite({ hmr: false })],
+      build: {
+        minify: 'terser',
+        sourcemap: false,
+        rollupOptions: {
+          output: {
+            manualChunks: {
+              vendor: ['@closure-next/core']
+            }
+          }
+        }
+      }
+    });
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="HMR not working">
+    Ensure the dev server is running and HMR is enabled:
+    
+    ```typescript
+    // vite.config.ts
+    export default defineConfig({
+      plugins: [
+        closureNextVite({ hmr: true })
+      ],
+      server: {
+        hmr: true // Also enable in server config
+      }
+    });
+    ```
+  </Accordion>
+  
+  <Accordion title="Import errors with .ts extensions">
+    The plugin automatically transforms `.ts` to `.js`. If you see errors, ensure the plugin is loaded:
+    
+    ```typescript
+    plugins: [
+      closureNextVite() // Must be in plugins array
+    ]
+    ```
+  </Accordion>
+  
+  <Accordion title="Path aliases not resolving">
+    Make sure paths are relative to the config file:
+    
+    ```typescript
+    import path from 'path';
+    
+    closureNextVite({
+      paths: {
+        '@components': path.resolve(__dirname, 'src/components')
+      }
+    })
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Performance Tips
+
+- Enable dependency pre-bundling for faster dev server startup
+- Use code splitting to reduce initial bundle size
+- Configure manual chunks for better caching
+- Disable HMR in production builds
+- Use the `build.sourcemap` option strategically
