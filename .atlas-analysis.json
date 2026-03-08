@@ -1,0 +1,155 @@
+{
+  "projectType": "sdk-library",
+  "projectName": "Closure Next",
+  "projectDescription": "Modern TypeScript rewrite of Google Closure Library with framework integrations and build tool support",
+  "theme": "palm",
+  "primaryColor": "#0285FF",
+  "lightColor": "#60B0FF",
+  "darkColor": "#0066CC",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "core/components",
+              "core/dom-helper",
+              "core/events",
+              "core/lazy-loading",
+              "core/bundles"
+            ]
+          },
+          {
+            "group": "Framework Integrations",
+            "pages": [
+              "integrations/react",
+              "integrations/vue",
+              "integrations/angular",
+              "integrations/svelte"
+            ]
+          },
+          {
+            "group": "Platform Support",
+            "pages": [
+              "platforms/nodejs",
+              "platforms/web-components",
+              "platforms/deno",
+              "platforms/mobile"
+            ]
+          },
+          {
+            "group": "Build Tools",
+            "pages": [
+              "build-tools/webpack",
+              "build-tools/vite",
+              "build-tools/rollup"
+            ]
+          },
+          {
+            "group": "Advanced Features",
+            "pages": [
+              "advanced/ssr",
+              "advanced/nextjs",
+              "advanced/nuxtjs",
+              "advanced/webassembly",
+              "advanced/testing"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/migration",
+              "guides/performance",
+              "guides/typescript"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Core API",
+            "pages": [
+              "api/component",
+              "api/dom-helper",
+              "api/event-target",
+              "api/bundle",
+              "api/lazy",
+              "api/utilities"
+            ]
+          },
+          {
+            "group": "Integration APIs",
+            "pages": [
+              "api/react",
+              "api/vue",
+              "api/angular",
+              "api/svelte"
+            ]
+          },
+          {
+            "group": "Platform APIs",
+            "pages": [
+              "api/node",
+              "api/web-components",
+              "api/wasm"
+            ]
+          },
+          {
+            "group": "Build Tool APIs",
+            "pages": [
+              "api/webpack-plugin",
+              "api/vite-plugin",
+              "api/rollup-plugin"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "TypeScript-first with full type safety",
+    "Modern component-based architecture",
+    "Framework integrations (React, Vue, Angular, Svelte)",
+    "Build tool plugins (Webpack, Vite, Rollup)",
+    "Server-side rendering support (Next.js, Nuxt.js)",
+    "WebAssembly optimizations",
+    "Cross-platform (Node.js, Deno, Browser, Mobile)",
+    "Comprehensive testing utilities"
+  ],
+  "publicApiSurface": [
+    "Component",
+    "DOMHelper",
+    "EventTarget",
+    "EventType",
+    "Bundle",
+    "Lazy",
+    "@closure-next/core",
+    "@closure-next/react",
+    "@closure-next/vue",
+    "@closure-next/angular",
+    "@closure-next/svelte",
+    "@closure-next/node",
+    "@closure-next/webpack",
+    "@closure-next/vite",
+    "@closure-next/rollup",
+    "@closure-next/wasm",
+    "@closure-next/testing",
+    "ClosureComponent (React)",
+    "useClosureComponent (React)",
+    "ClosurePlugin (Webpack)",
+    "closureNextPlugin (Vite)",
+    "closureNext (Rollup)"
+  ]
+}
