@@ -1,11 +1,12 @@
 ---
 title: "Svelte Integration"
 description: "Svelte integration API for Closure Next components"
+icon: "svelte"
 ---
 
 ## Overview
 
-The `@closure-next/svelte` package provides integration between Closure Next components and Svelte applications, offering a Svelte-compatible wrapper for seamless component integration.
+The `@closure-next/svelte` package provides Svelte-specific integration for Closure Next components using Svelte stores and lifecycle hooks.
 
 ## Installation
 
@@ -17,401 +18,349 @@ npm install @closure-next/svelte
 
 ### Functions
 
-<ResponseField name="closureComponent" type="function">
-  Creates a Svelte-compatible wrapper for a Closure Next component.
+<ResponseField name="createClosureStore" type="function">
+  Creates a Svelte store that manages a Closure Next component lifecycle.
 </ResponseField>
 
-### Classes
+### Types
 
-<ResponseField name="Component" type="class">
-  Re-exported from `@closure-next/core`.
+<ResponseField name="ClosureComponentOptions" type="interface">
+  Configuration options for Closure components in Svelte.
 </ResponseField>
 
-<ResponseField name="ComponentConstructor" type="type">
-  Re-exported from `@closure-next/core`.
+<ResponseField name="ClosureStore" type="interface">
+  Svelte store interface for component management.
+</ResponseField>
+
+<ResponseField name="ClosureInstance" type="type">
+  Component instance with Svelte-specific features.
+</ResponseField>
+
+<ResponseField name="ClosureSSRContext" type="interface">
+  Server-side rendering context for Svelte.
 </ResponseField>
 
 ---
 
-## closureComponent
+## createClosureStore
 
 ```typescript
-function closureComponent<T extends Component>(
-  options: ClosureComponentOptions<T>
-): SvelteComponent
+function createClosureStore<T extends Component>(
+  ComponentClass: new (domHelper?: DOMHelper) => T,
+  options?: ClosureComponentOptions<T>
+): ClosureStore<T>
 ```
 
-Creates a Svelte-compatible wrapper for a Closure Next component. The wrapper handles the component lifecycle, prop management, and cleanup automatically.
+Creates a Svelte store that manages the lifecycle of a Closure Next component, integrating with Svelte's reactivity system.
 
 ### Parameters
 
-<ParamField path="options" type="ClosureComponentOptions<T>" required>
+<ParamField path="ComponentClass" type="ComponentConstructor<T>" required>
+  The Closure Next component class constructor.
+</ParamField>
+
+<ParamField path="options" type="ClosureComponentOptions<T>">
   Configuration options for the component wrapper.
   
   **Properties**:
-  - `target`: HTMLElement (required) - The DOM element to render the component into
-  - `component`: Component constructor (required) - The Closure Next component class
-  - `props`: Record\<string, unknown\> (optional) - Initial props for the component
+  - `props`: ComponentState (optional) - Initial props for the component
+  - `ssrOptions`: Object (optional) - SSR configuration with hydration strategy
+  - `onMount`: (component: T) => void (optional) - Called after component mounts
+  - `onDestroy`: (component: T) => void (optional) - Called before component destroys
+  - `onError`: (error: Error) => void (optional) - Error handler
 </ParamField>
 
 ### Returns
 
-<ResponseField name="wrapper" type="SvelteComponent">
-  A Svelte component instance that wraps the Closure Next component. The wrapper extends `SvelteComponent` and includes:
-  - Standard Svelte lifecycle methods
-  - Automatic cleanup via `$destroy()`
-  - Component reference stored on the target element as `_closureComponent`
+<ResponseField name="store" type="ClosureStore<T>">
+  A Svelte store object containing reactive state and control methods.
+
+  **Properties**:
+  - `component`: Writable\<T | null\> - Writable store containing the component instance
+  - `props`: Writable\<ComponentState\> - Writable store for component props
+  - `element`: Writable\<HTMLElement | null\> - Writable store for the DOM element
+  - `setProps`: (props: Partial\<ComponentState\>) => Promise\<void\> - Method to update props
 </ResponseField>
-
-### Type Definition
-
-```typescript
-interface ClosureComponentOptions<T extends Component> {
-  target: HTMLElement;
-  props?: Record<string, unknown>;
-  component: new () => T;
-}
-```
-
-### Behavior
-
-1. **Initialization**: Creates a new instance of the Closure component
-2. **Rendering**: Calls `render()` on the component with the target element
-3. **Props Application**: 
-   - Attempts to call setter methods (e.g., `setTitle` for a `title` prop)
-   - Falls back to direct property assignment or method calls
-4. **Lifecycle**: Stores component reference on target element for debugging and testing
-5. **Cleanup**: Automatically disposes the component when `$destroy()` is called
 
 ### Example
 
 ```svelte
 <script lang="ts">
-  import { closureComponent } from '@closure-next/svelte';
-  import { MyClosureComponent } from './my-component';
-  
-  let target: HTMLElement;
-  
-  const component = closureComponent({
-    target,
-    component: MyClosureComponent,
-    props: {
-      title: 'Hello from Closure Next',
-      onClick: () => alert('Clicked!')
+  import { createClosureStore } from '@closure-next/svelte';
+  import { Component, DOMHelper } from '@closure-next/core';
+
+  class Counter extends Component {
+    private count = 0;
+
+    protected async createDom(): Promise<void> {
+      this.element = this.domHelper.createElement('div');
+      this.updateDisplay();
     }
-  });
-  
-  // Component is automatically destroyed when this Svelte component is destroyed
-</script>
 
-<div bind:this={target}></div>
-```
-
-### Advanced Usage
-
-#### With Reactive Props
-
-```svelte
-<script lang="ts">
-  import { onMount } from 'svelte';
-  import { closureComponent } from '@closure-next/svelte';
-  import { Button } from '@closure-next/core';
-  
-  let buttonTarget: HTMLElement;
-  let label = 'Click me';
-  let component: any;
-  
-  onMount(() => {
-    component = closureComponent({
-      target: buttonTarget,
-      component: Button,
-      props: {
-        label,
-        onClick: () => alert('Button clicked!')
+    private updateDisplay() {
+      if (this.element) {
+        this.element.textContent = `Count: ${this.count}`;
       }
-    });
+    }
+
+    increment() {
+      this.count++;
+      this.updateDisplay();
+    }
+  }
+
+  const store = createClosureStore(Counter, {
+    props: {},
+    onMount: (component) => {
+      console.log('Component mounted', component);
+    }
   });
-  
-  // Update props when reactive value changes
-  $: if (component && buttonTarget) {
-    const closureInstance = (buttonTarget as any)._closureComponent;
-    if (closureInstance && closureInstance.setLabel) {
-      closureInstance.setLabel(label);
+
+  const { component, element } = store;
+
+  function handleClick() {
+    const comp = $component;
+    if (comp && 'increment' in comp) {
+      (comp as Counter).increment();
     }
   }
 </script>
 
-<div>
-  <input bind:value={label} />
-  <div bind:this={buttonTarget}></div>
+<div bind:this={$element}>
+  <!-- Closure component renders here -->
 </div>
-```
-
-#### TypeScript Support
-
-```typescript
-import type { Component } from '@closure-next/core';
-import { closureComponent } from '@closure-next/svelte';
-
-interface MyComponentProps {
-  title: string;
-  onClick: () => void;
-}
-
-class MyComponent extends Component {
-  setTitle(title: string): void { /* ... */ }
-  setOnClick(handler: () => void): void { /* ... */ }
-}
-
-const component = closureComponent<MyComponent>({
-  target: element,
-  component: MyComponent,
-  props: {
-    title: 'Hello', // Type-checked
-    onClick: () => {} // Type-checked
-  }
-});
-```
-
-#### Accessing Component Instance
-
-```svelte
-<script lang="ts">
-  import { onMount } from 'svelte';
-  import { closureComponent } from '@closure-next/svelte';
-  import { MyClosureComponent } from './my-component';
-  
-  let target: HTMLElement;
-  let closureInstance: MyClosureComponent;
-  
-  onMount(() => {
-    const wrapper = closureComponent({
-      target,
-      component: MyClosureComponent,
-      props: { title: 'Hello' }
-    });
-    
-    // Access the Closure component instance
-    closureInstance = (target as any)._closureComponent;
-    
-    return () => {
-      wrapper.$destroy();
-    };
-  });
-  
-  function updateTitle() {
-    if (closureInstance) {
-      closureInstance.setTitle('Updated Title');
-    }
-  }
-</script>
-
-<div>
-  <button on:click={updateTitle}>Update</button>
-  <div bind:this={target}></div>
-</div>
+<button on:click={handleClick}>Increment</button>
 ```
 
 ---
 
-## Props Handling
-
-### Setter Method Priority
-
-The integration attempts to set props in the following order:
-
-1. **Setter methods**: Looks for methods like `setTitle()` for a `title` prop
-2. **Function properties**: If the property is a function, calls it with the value
-3. **Direct assignment**: Falls back to direct property assignment
+## ClosureComponentOptions
 
 ```typescript
-class MyComponent extends Component {
-  private _title: string = '';
-  
-  // This setter will be called for the 'title' prop
-  setTitle(title: string): void {
-    this._title = title;
-    if (this.element) {
-      this.element.textContent = title;
-    }
-  }
+interface ClosureComponentOptions<T extends Component = Component> {
+  props?: ComponentState;
+  ssrOptions?: {
+    hydration?: 'client-only' | 'server-first' | 'progressive';
+    ssr?: boolean;
+  };
+  onMount?: (component: T) => void;
+  onDestroy?: (component: T) => void;
+  onError?: (error: Error) => void;
 }
-
-// Usage
-closureComponent({
-  target,
-  component: MyComponent,
-  props: {
-    title: 'Hello' // Calls setTitle('Hello')
-  }
-});
 ```
+
+Configuration options for creating a Closure component in Svelte.
+
+### Properties
+
+<ParamField path="props" type="ComponentState">
+  Initial props to pass to the component.
+</ParamField>
+
+<ParamField path="ssrOptions" type="object">
+  Server-side rendering configuration.
+  
+  - `hydration`: 'client-only' | 'server-first' | 'progressive' - Hydration strategy
+  - `ssr`: boolean - Enable/disable SSR
+</ParamField>
+
+<ParamField path="onMount" type="(component: T) => void">
+  Callback invoked after the component mounts.
+</ParamField>
+
+<ParamField path="onDestroy" type="(component: T) => void">
+  Callback invoked before the component is destroyed.
+</ParamField>
+
+<ParamField path="onError" type="(error: Error) => void">
+  Error handler for component lifecycle errors.
+</ParamField>
 
 ---
 
-## Component Lifecycle
+## ClosureStore
 
-### Initialization Flow
+```typescript
+interface ClosureStore<T extends Component = Component> {
+  component: Writable<T | null>;
+  props: Writable<ComponentState>;
+  element: Writable<HTMLElement | null>;
+  setProps(props: Partial<ComponentState>): Promise<void>;
+}
+```
 
-1. Component constructor is called: `new ComponentClass()`
-2. Component is rendered: `component.render(target)`
-3. Props are applied using setter methods or direct assignment
-4. Component reference is stored on target element
+Svelte store interface returned by `createClosureStore`.
 
-### Cleanup Flow
+### Store Properties
 
-1. `$destroy()` is called on the Svelte wrapper
-2. `dispose()` is called on the Closure component
-3. Component reference is removed from target element
-4. Standard Svelte cleanup continues
+<ParamField path="component" type="Writable<T | null>">
+  Writable store containing the component instance. Subscribe to track component state.
+</ParamField>
 
-### Example Lifecycle Integration
+<ParamField path="props" type="Writable<ComponentState>">
+  Writable store for component props. Changes automatically propagate to the component.
+</ParamField>
+
+<ParamField path="element" type="Writable<HTMLElement | null>">
+  Writable store for the DOM element where the component is rendered.
+</ParamField>
+
+<ParamField path="setProps" type="(props: Partial<ComponentState>) => Promise<void>">
+  Async method to update component props. Calls setter methods on the component instance.
+</ParamField>
+
+### Example with Reactive Props
 
 ```svelte
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
-  import { closureComponent } from '@closure-next/svelte';
+  import { createClosureStore } from '@closure-next/svelte';
+  import { writable } from 'svelte/store';
   import { MyComponent } from './my-component';
+
+  const store = createClosureStore(MyComponent);
+  const { component, props, element, setProps } = store;
+
+  // Reactive prop updates
+  const title = writable('Initial Title');
   
-  let target: HTMLElement;
-  let wrapper: any;
-  
-  onMount(() => {
-    console.log('Svelte component mounting');
-    
-    wrapper = closureComponent({
-      target,
-      component: MyComponent,
-      props: { /* ... */ }
-    });
-    
-    console.log('Closure component initialized');
-  });
-  
-  onDestroy(() => {
-    console.log('Svelte component destroying');
-    
-    if (wrapper) {
-      wrapper.$destroy();
-    }
-    
-    console.log('Closure component disposed');
-  });
+  $: setProps({ title: $title });
 </script>
 
-<div bind:this={target}></div>
+<input bind:value={$title} />
+<div bind:this={$element}></div>
+```
+
+---
+
+## Server-Side Rendering
+
+### SSR with SvelteKit
+
+```svelte
+<!-- +page.svelte -->
+<script lang="ts">
+  import { createClosureStore } from '@closure-next/svelte';
+  import { browser } from '$app/environment';
+  import { MyComponent } from './my-component';
+
+  const store = createClosureStore(MyComponent, {
+    ssrOptions: {
+      ssr: !browser,
+      hydration: 'server-first'
+    }
+  });
+
+  const { element } = store;
+</script>
+
+<div bind:this={$element}></div>
+```
+
+### Hydration Strategies
+
+<Accordion title="client-only">
+  Renders only on the client. No server-side rendering. Best for components that require browser APIs.
+</Accordion>
+
+<Accordion title="server-first">
+  Renders on the server first, then hydrates on the client. Best for SEO-critical content.
+</Accordion>
+
+<Accordion title="progressive">
+  Partially hydrates the component, prioritizing interactive elements. Best for large components.
+</Accordion>
+
+---
+
+## Advanced Patterns
+
+### Component with Lifecycle Hooks
+
+```svelte
+<script lang="ts">
+  import { createClosureStore } from '@closure-next/svelte';
+  import { onMount as svelteOnMount, onDestroy as svelteOnDestroy } from 'svelte';
+
+  const store = createClosureStore(MyComponent, {
+    onMount: (component) => {
+      console.log('Closure component mounted');
+      // Initialize external resources
+    },
+    onDestroy: (component) => {
+      console.log('Closure component destroying');
+      // Cleanup external resources
+    },
+    onError: (error) => {
+      console.error('Component error:', error);
+      // Handle errors
+    }
+  });
+</script>
+```
+
+### Integration with Svelte Stores
+
+```svelte
+<script lang="ts">
+  import { createClosureStore } from '@closure-next/svelte';
+  import { derived } from 'svelte/store';
+
+  const store = createClosureStore(MyComponent);
+  const { component, props } = store;
+
+  // Derive computed values
+  const isReady = derived(component, $comp => $comp !== null);
+
+  // Sync with external store
+  import { globalState } from './stores';
+  
+  $: if ($globalState.theme) {
+    setProps({ theme: $globalState.theme });
+  }
+</script>
+
+{#if $isReady}
+  <div bind:this={$element}></div>
+{:else}
+  <p>Loading...</p>
+{/if}
 ```
 
 ---
 
 ## Best Practices
 
-### Use Svelte's Lifecycle Hooks
+<Accordion title="Use Svelte Stores for Reactivity">
+  Leverage Svelte's reactive stores to sync component state with your application state.
+</Accordion>
 
-Initialize Closure components in `onMount` to ensure the DOM is ready:
+<Accordion title="Handle Cleanup Properly">
+  Always use `onDestroy` callbacks to clean up resources when components unmount.
+</Accordion>
 
-```svelte
-<script lang="ts">
-  import { onMount } from 'svelte';
-  
-  let target: HTMLElement;
-  
-  onMount(() => {
-    const component = closureComponent({
-      target,
-      component: MyComponent,
-      props: { /* ... */ }
-    });
-    
-    // Return cleanup function
-    return () => component.$destroy();
-  });
-</script>
-```
+<Accordion title="Choose the Right Hydration Strategy">
+  Select the hydration strategy based on your performance and SEO requirements.
+</Accordion>
 
-### Define Clear Setter Methods
+<Accordion title="TypeScript Integration">
+  Use TypeScript for type-safe component props and store access.
+</Accordion>
 
-Implement setter methods in your Closure components for better prop handling:
+---
 
-```typescript
-class MyComponent extends Component {
-  private _title: string = '';
-  private _count: number = 0;
-  
-  setTitle(title: string): void {
-    this._title = title;
-    this.updateDOM();
-  }
-  
-  setCount(count: number): void {
-    this._count = count;
-    this.updateDOM();
-  }
-  
-  private updateDOM(): void {
-    if (this.element) {
-      this.element.innerHTML = `${this._title}: ${this._count}`;
-    }
-  }
-}
-```
+## Related Documentation
 
-### Handle Component References Carefully
-
-Store component references when you need programmatic access:
-
-```svelte
-<script lang="ts">
-  import { onMount } from 'svelte';
-  
-  let target: HTMLElement;
-  let componentRef: MyComponent | null = null;
-  
-  onMount(() => {
-    closureComponent({ target, component: MyComponent });
-    componentRef = (target as any)._closureComponent;
-  });
-  
-  function callComponentMethod() {
-    componentRef?.someMethod();
-  }
-</script>
-```
-
-### Cleanup on Component Destruction
-
-Always ensure proper cleanup to avoid memory leaks:
-
-```svelte
-<script lang="ts">
-  import { onDestroy } from 'svelte';
-  
-  let wrapper: any;
-  
-  onDestroy(() => {
-    // Svelte wrapper cleanup (also calls dispose on Closure component)
-    wrapper?.$destroy();
-    
-    // Additional custom cleanup if needed
-    // ...
-  });
-</script>
-```
-
-### Testing
-
-Access the component instance in tests via the stored reference:
-
-```typescript
-import { render } from '@testing-library/svelte';
-import MyComponent from './MyComponent.svelte';
-
-test('closure component integration', () => {
-  const { container } = render(MyComponent);
-  const target = container.querySelector('[data-closure-target]');
-  const closureComponent = (target as any)?._closureComponent;
-  
-  expect(closureComponent).toBeDefined();
-  expect(closureComponent.getElement()).toBeTruthy();
-});
-```
+<CardGroup cols={2}>
+  <Card title="Core Components" icon="cube" href="/core/components">
+    Learn about the base Component class
+  </Card>
+  <Card title="Svelte Integration Guide" icon="svelte" href="/integrations/svelte">
+    Complete guide for using Closure Next with Svelte
+  </Card>
+  <Card title="Server-Side Rendering" icon="server" href="/advanced/ssr">
+    Learn about SSR patterns and best practices
+  </Card>
+  <Card title="TypeScript Guide" icon="code" href="/guides/typescript">
+    TypeScript best practices and patterns
+  </Card>
+</CardGroup>

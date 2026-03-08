@@ -103,8 +103,7 @@
               "api/dom-helper",
               "api/event-target",
               "api/bundle",
-              "api/lazy",
-              "api/utilities"
+              "api/lazy"
             ]
           },
           {
